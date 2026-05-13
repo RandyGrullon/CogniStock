@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Bell } from "lucide-react";
 import Sidebar from "../components/Sidebar";
-import { SWRConfig } from 'swr';
+import Providers from "../components/Providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,14 +20,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark">
       <body className={`${inter.className} bg-black text-white overflow-hidden`}>
-        <SWRConfig 
-          value={{
-            fetcher: (url: string) => fetch(url).then(res => res.json()),
-            refreshInterval: 5000,
-            revalidateOnFocus: true,
-            dedupingInterval: 2000
-          }}
-        >
+        <Providers>
           <div className="flex h-screen w-screen overflow-hidden bg-[#050505]">
             
             <Sidebar />
@@ -63,7 +56,7 @@ export default function RootLayout({
               </main>
             </div>
           </div>
-        </SWRConfig>
+        </Providers>
       </body>
     </html>
   );
