@@ -34,7 +34,7 @@ export default function AIChatPage() {
     return () => {
       if (messages.length >= 2 && sessionId) {
         const historyToSave = messages.map(m => ({ role: m.role, content: m.content }));
-        navigator.sendBeacon('http://localhost:8000/api/chat/end-session', JSON.stringify({ 
+        navigator.sendBeacon('/api/chat/end-session', JSON.stringify({ 
           session_id: sessionId, 
           history: historyToSave 
         }));
@@ -54,7 +54,7 @@ export default function AIChatPage() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/chat/message', {
+      const response = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,7 +107,6 @@ export default function AIChatPage() {
         </motion.div>
       </header>
 
-      {/* Main Chat Interface */}
       <div className="flex-1 glass-card rounded-[3.5rem] border border-white/5 flex flex-col overflow-hidden shadow-2xl relative">
         <div className="absolute inset-0 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
         
@@ -164,7 +163,6 @@ export default function AIChatPage() {
           </AnimatePresence>
         </div>
 
-        {/* Input Bar */}
         <div className="p-8 bg-zinc-950/90 border-t border-white/5 backdrop-blur-2xl relative z-20">
           <form onSubmit={sendMessage} className="relative max-w-4xl mx-auto">
             <div className="relative group">
@@ -203,33 +201,21 @@ function ChatMessage({ msg }: { msg: any }) {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    // Simple parser for stock-related text decoration
     const renderContent = (text: string) => {
         if (!text) return null;
-        
-        // Split by lines and handle bold, tickers, and prices
         return text.split('\n').map((line, i) => {
             if (!line.trim()) return <br key={i} />;
-            
             let processedLine: any = line;
-            
-            // Highlight Tickers like $NVDA or NVDA (if in caps)
             processedLine = processedLine.replace(/(\$[A-Z]+|[A-Z]{3,5})/g, (match: string) => `__TICKER__${match}__`);
-            
-            // Highlight Prices like $150.00
             processedLine = processedLine.replace(/(\$\d+\.?\d*)/g, (match: string) => `__PRICE__${match}__`);
-
             return (
                 <div key={i} className="mb-2 last:mb-0">
-                    {line.split('__').map((part, j) => {
+                    {processedLine.split('__').map((part: string, j: number) => {
                         if (part.startsWith('TICKER')) return <span key={j} className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-bold font-mono text-[13px]">{part.replace('TICKER', '')}</span>;
                         if (part.startsWith('PRICE')) return <span key={j} className="text-emerald-400 font-bold font-mono">{part.replace('PRICE', '')}</span>;
-                        
-                        // Handle Bold text **like this**
                         if (part.includes('**')) {
                             return part.split('**').map((bPart, k) => k % 2 === 1 ? <b key={k} className="text-white font-black">{bPart}</b> : bPart);
                         }
-                        
                         return part;
                     })}
                 </div>
@@ -238,11 +224,7 @@ function ChatMessage({ msg }: { msg: any }) {
     };
 
     return (
-        <motion.div 
-            initial={{ opacity: 0, y: 20, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
-        >
+        <motion.div initial={{ opacity: 0, y: 20, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex gap-5 max-w-[90%] md:max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
                 <div className="relative flex-shrink-0 mt-1">
                     <div className={`absolute inset-0 blur-lg opacity-40 ${isUser ? 'bg-zinc-700' : 'bg-blue-600'}`} />
@@ -250,21 +232,10 @@ function ChatMessage({ msg }: { msg: any }) {
                         {isUser ? <User size={22} /> : <Bot size={22} />}
                     </div>
                 </div>
-
                 <div className="space-y-2 group flex-1">
-                    <div className={`relative p-6 rounded-[2.2rem] text-[15px] leading-relaxed shadow-2xl transition-all border overflow-hidden ${
-                        isUser 
-                        ? 'bg-blue-600 border-blue-400/30 text-white rounded-tr-none' 
-                        : 'bg-zinc-900/80 border-white/10 text-zinc-300 rounded-tl-none backdrop-blur-xl'
-                    }`}>
-                        {!isUser && (
-                             <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-                        )}
-                        
-                        <div className="relative z-10">
-                            {renderContent(msg.content)}
-                        </div>
-                        
+                    <div className={`relative p-6 rounded-[2.2rem] text-[15px] leading-relaxed shadow-2xl transition-all border overflow-hidden ${isUser ? 'bg-blue-600 border-blue-400/30 text-white rounded-tr-none' : 'bg-zinc-900/80 border-white/10 text-zinc-300 rounded-tl-none backdrop-blur-xl'}`}>
+                        {!isUser && <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />}
+                        <div className="relative z-10">{renderContent(msg.content)}</div>
                         {!isUser && (
                             <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                                 <button onClick={handleCopy} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-zinc-500 hover:text-white border border-white/5">
@@ -273,11 +244,8 @@ function ChatMessage({ msg }: { msg: any }) {
                             </div>
                         )}
                     </div>
-
                     <div className={`flex items-center gap-3 px-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${isUser ? 'text-zinc-600' : 'text-blue-500/80'}`}>
-                            {isUser ? 'Master User' : 'CogniStock Intelligence'}
-                        </span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${isUser ? 'text-zinc-600' : 'text-blue-500/80'}`}>{isUser ? 'Master User' : 'CogniStock Intelligence'}</span>
                         <div className="w-1 h-1 bg-zinc-800 rounded-full" />
                         <div className="flex items-center gap-1.5 text-zinc-600">
                             <Clock size={10} />
@@ -292,10 +260,7 @@ function ChatMessage({ msg }: { msg: any }) {
 
 function QuickCommand({ text, icon, onClick }: { text: string, icon: React.ReactNode, onClick: () => void }) {
     return (
-        <button 
-            onClick={onClick}
-            className="flex items-center gap-2.5 px-6 py-3 bg-white/5 border border-white/5 hover:border-blue-500/30 hover:bg-blue-500/10 rounded-[1.2rem] text-xs font-bold text-zinc-400 hover:text-white transition-all group shadow-lg"
-        >
+        <button onClick={onClick} className="flex items-center gap-2.5 px-6 py-3 bg-white/5 border border-white/5 hover:border-blue-500/30 hover:bg-blue-500/10 rounded-[1.2rem] text-xs font-bold text-zinc-400 hover:text-white transition-all group shadow-lg">
             <span className="text-blue-500 opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all">{icon}</span>
             <span>{text}</span>
         </button>
