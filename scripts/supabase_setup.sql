@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS portafolio (
     trades_ganadores int DEFAULT 0,
     trades_perdedores int DEFAULT 0,
     mejor_trade_pnl float DEFAULT 0.0,
-    peor_trade_pnl float DEFAULT 0.0,
+peor_trade_pnl float DEFAULT 0.0,
     ultima_actualizacion timestamp with time zone DEFAULT timezone('utc'::text, now()),
     CONSTRAINT single_row CHECK (id = 1)
 );
