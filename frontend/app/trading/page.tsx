@@ -209,7 +209,7 @@ export default function TradingPage() {
             </div>
 
             <div className="h-[440px] bg-gradient-to-b from-transparent to-black/20 rounded-2xl p-2 border border-white/[0.02]">
-              <TradingChart ticker={selectedTicker} livePrice={displayPrice} trades={trades || []} />
+              <TradingChart ticker={selectedTicker} livePrice={displayPrice} markers={trades || []} />
             </div>
           </div>
 

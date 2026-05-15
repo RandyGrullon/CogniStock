@@ -13,13 +13,13 @@ import useSWR from 'swr';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
-interface TradingChartProps {
+export interface TradingChartProps {
   ticker: string;
+  markers?: any[];
   livePrice?: number;
-  trades?: any[];
 }
 
-export default function TradingChart({ ticker, livePrice, trades = [] }: TradingChartProps) {
+export default function TradingChart({ ticker, markers = [], livePrice }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -135,90 +135,83 @@ export default function TradingChart({ ticker, livePrice, trades = [] }: Trading
       });
       tradePriceLinesRef.current = [];
       
-      const tickerTrades = trades.filter((t: any) => t.ticker === ticker);
-      const newPriceLines: any[] = [];
-      const formattedMarkers: any[] = [];
+      if (markers && markers.length > 0) {
+        const formattedMarkers: any[] = [];
+        const newPriceLines: any[] = [];
 
-      tickerTrades.forEach((trade: any) => {
-        // Markers for execution
-        if (trade.fecha_entrada) {
-          const entryDateStr = trade.fecha_entrada.split('T')[0];
-          formattedMarkers.push({
-            time: entryDateStr,
-            position: trade.tipo === 'BUY' ? 'belowBar' : 'aboveBar',
-            color: trade.tipo === 'BUY' ? '#3b82f6' : '#ef4444',
-            shape: trade.tipo === 'BUY' ? 'arrowUp' : 'arrowDown',
-            text: `Entry ${trade.tipo} @ ${trade.precio_entrada}`,
-          });
-
-          if (trade.estado === 'CLOSED' && trade.fecha_salida) {
-            const exitDateStr = trade.fecha_salida.split('T')[0];
+        markers.forEach(m => {
+          // Handle Analysis objects
+          if (m.fecha && !m.fecha_entrada) {
+            const dateStr = m.fecha.split('T')[0];
             formattedMarkers.push({
-              time: exitDateStr,
-              position: trade.tipo === 'BUY' ? 'aboveBar' : 'belowBar',
-              color: trade.pnl >= 0 ? '#10b981' : '#ef4444',
-              shape: trade.tipo === 'BUY' ? 'arrowDown' : 'arrowUp',
-              text: `Close @ ${trade.precio_salida} (${trade.pnl >= 0 ? '+' : ''}${trade.pnl?.toFixed(2)})`,
+              time: dateStr,
+              position: m.recomendacion === 'BUY' ? 'belowBar' : 'aboveBar',
+              color: m.recomendacion === 'BUY' ? '#10b981' : '#3b82f6',
+              shape: m.recomendacion === 'BUY' ? 'arrowUp' : 'arrowDown',
+              text: m.recomendacion,
             });
           }
-        }
-
-        // Open Position Price Lines
-        if (trade.estado === 'OPEN') {
-          if (trade.precio_entrada) {
-            newPriceLines.push(series.createPriceLine({
-              price: trade.precio_entrada,
-              color: trade.tipo === 'BUY' ? '#3b82f6' : '#ef4444',
-              lineWidth: 1,
-              lineStyle: 2,
-              axisLabelVisible: true,
-              title: `Entry ${trade.tipo}`,
-            }));
-          }
-          if (trade.stop_loss) {
-            newPriceLines.push(series.createPriceLine({
-              price: trade.stop_loss,
-              color: '#ef4444',
-              lineWidth: 1,
-              lineStyle: 1,
-              axisLabelVisible: true,
-              title: 'SL',
-            }));
-          }
-          if (trade.take_profit) {
-            newPriceLines.push(series.createPriceLine({
-              price: trade.take_profit,
+          
+          // Handle Trade objects
+          if (m.fecha_entrada) {
+            const entryDate = m.fecha_entrada.split('T')[0];
+            formattedMarkers.push({
+              time: entryDate,
+              position: 'belowBar',
               color: '#10b981',
-              lineWidth: 1,
-              lineStyle: 1,
-              axisLabelVisible: true,
-              title: 'TP',
-            }));
+              shape: 'arrowUp',
+              text: `BUY @ $${m.precio_entrada}`,
+            });
+            
+            if (m.fecha_salida && m.estado === 'CLOSED') {
+              const exitDate = m.fecha_salida.split('T')[0];
+              formattedMarkers.push({
+                time: exitDate,
+                position: 'aboveBar',
+                color: m.pnl >= 0 ? '#10b981' : '#ef4444',
+                shape: 'arrowDown',
+                text: `SELL @ $${m.precio_salida}`,
+              });
+            }
+
+            // Open Position Price Lines
+            if (m.estado === 'OPEN' && m.ticker === ticker) {
+              newPriceLines.push(series.createPriceLine({
+                price: m.precio_entrada,
+                color: '#3b82f6',
+                lineWidth: 1,
+                lineStyle: 2,
+                axisLabelVisible: true,
+                title: 'Entry',
+              }));
+            }
           }
-        }
-      });
+        });
+        
+        tradePriceLinesRef.current = newPriceLines;
 
-      tradePriceLinesRef.current = newPriceLines;
+        // Map strings to timestamps and dedup
+        const finalMarkers = formattedMarkers.map(marker => {
+            if (typeof marker.time === 'string' && chartData[0] && typeof chartData[0].time === 'number') {
+                return { ...marker, time: Math.floor(new Date(marker.time).getTime() / 1000) };
+            }
+            return marker;
+        })
+        .sort((a, b) => (typeof a.time === 'number' && typeof b.time === 'number') ? a.time - b.time : 0)
+        .filter((marker, index, self) => 
+            index === self.findIndex((t) => t.time === marker.time && t.text === marker.text)
+        );
 
-      // Map strings to timestamps and dedup
-      const finalMarkers = formattedMarkers.map(marker => {
-          if (typeof marker.time === 'string' && chartData[0] && typeof chartData[0].time === 'number') {
-              return { ...marker, time: Math.floor(new Date(marker.time).getTime() / 1000) };
-          }
-          return marker;
-      })
-      .sort((a, b) => (typeof a.time === 'number' && typeof b.time === 'number') ? a.time - b.time : 0)
-      .filter((marker, index, self) => 
-          index === self.findIndex((t) => t.time === marker.time && t.text === marker.text)
-      );
-
-      series.setMarkers(finalMarkers);
+        series.setMarkers(finalMarkers);
+      } else {
+        series.setMarkers([]);
+      }
       
       if (chartData.length > 0) {
         chartRef.current?.timeScale().fitContent();
       }
     }
-  }, [chartData, trades, ticker]);
+  }, [chartData, markers, ticker]);
 
   // Live Price update
   useEffect(() => {
