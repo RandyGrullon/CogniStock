@@ -81,7 +81,7 @@ export default function TradingChart({ ticker, markers = [], livePrice }: Tradin
       },
     });
 
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+    const candlestickSeries = chart.addCandlestickSeries({
       upColor: '#10b981',
       downColor: '#ef4444',
       borderVisible: false,
