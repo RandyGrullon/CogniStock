@@ -5,5 +5,15 @@
     { "path": "/api/cron/run-analysis", "schedule": "*/5 13-20 * * 1-5" },
     { "path": "/api/cron/update-pnl", "schedule": "*/15 13-20 * * 1-5" },
     { "path": "/api/cron/close-day", "schedule": "15 20 * * 1-5" }
-  ]
+  ],
+  "experimentalServices": {
+    "frontend": {
+      "entrypoint": "frontend",
+      "routePrefix": "/",
+      "framework": "nextjs"
+    },
+    "backend": {
+      "entrypoint": "backend",
+      "routePrefix": "/_backend"
+    }
 }
