@@ -1,0 +1,44 @@
+name: AI Trading Scheduler
+
+on:
+  schedule:
+    # Análisis cada 10 minutos (Lunes a Viernes) para entrar en el Free Tier de GitHub
+    - cron: '*/10 * * * 1-5'
+  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  run-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Run Analysis
+        run: |
+          curl -X GET "${{ secrets.PRODUCTION_URL }}/api/cron/run-analysis" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          -f
+
+  update-pnl:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/10 * * * 1-5' # Solo en cron
+    steps:
+      - name: Ping Update PnL
+        run: |
+          curl -X GET "${{ secrets.PRODUCTION_URL }}/api/cron/update-pnl" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          -f
+
+  daily-tasks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start Day (00:00 UTC)
+        if: github.event.schedule == '0 0 * * 1-5'
+        run: |
+          curl -X GET "${{ secrets.PRODUCTION_URL }}/api/cron/start-day" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          -f
+      
+      - name: Close Day (23:50 UTC)
+        if: github.event.schedule == '50 23 * * 1-5'
+        run: |
+          curl -X GET "${{ secrets.PRODUCTION_URL }}/api/cron/close-day" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          -f

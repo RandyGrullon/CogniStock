@@ -9,11 +9,5 @@
       "entrypoint": "backend",
       "routePrefix": "/_backend"
     }
-  },
-  "crons": [
-    { "path": "/api/cron/start-day", "schedule": "0 0 * * 1-5" },
-    { "path": "/api/cron/run-analysis", "schedule": "*/5 * * * 1-5" },
-    { "path": "/api/cron/update-pnl", "schedule": "*/15 * * * 1-5" },
-    { "path": "/api/cron/close-day", "schedule": "55 23 * * 1-5" }
-  ]
+  }
 }
