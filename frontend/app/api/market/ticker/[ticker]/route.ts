@@ -8,36 +8,45 @@ export const dynamic = "force-dynamic";
 
 const YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart";
 
-function mapToYahoo(ticker: string): string {
-  const map: Record<string, string> = {
-    XAUUSD: "GC=F",
-    "GC=F": "GC=F",
-    BTCUSD: "BTC-USD",
-    ETHUSD: "ETH-USD",
+function mapToYahoo(ticker: string): string[] {
+  const map: Record<string, string[]> = {
+    XAUUSD: ["GC=F", "XAUUSD=X", "GOLD"],
+    BTCUSD: ["BTC-USD"],
+    ETHUSD: ["ETH-USD"],
   };
-  return map[ticker.toUpperCase()] || ticker;
+  return map[ticker.toUpperCase()] || [ticker];
 }
 
 async function yahooPrice(ticker: string): Promise<number> {
-  const mappedTicker = mapToYahoo(ticker);
-  const res = await fetch(
-    `${YAHOO_CHART}/${encodeURIComponent(mappedTicker)}?interval=1m&range=1d`,
-    {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-      },
-      cache: "no-store",
+  const tickersToTry = mapToYahoo(ticker);
+  let lastError: Error | null = null;
+
+  for (const t of tickersToTry) {
+    try {
+      const res = await fetch(
+        `${YAHOO_CHART}/${encodeURIComponent(t)}?interval=1m&range=1d`,
+        {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          },
+          cache: "no-store",
+        }
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      const r = data?.chart?.result?.[0];
+      const p =
+        r?.meta?.regularMarketPrice ??
+        r?.indicators?.quote?.[0]?.close?.filter((x: any) => x != null)?.slice(-1)?.[0];
+      
+      if (typeof p === "number" && p > 0) return p;
+    } catch (e: any) {
+      lastError = e;
     }
-  );
-  if (!res.ok) throw new Error(`yahoo ${res.status}`);
-  const data = await res.json();
-  const r = data?.chart?.result?.[0];
-  const p =
-    r?.meta?.regularMarketPrice ??
-    r?.indicators?.quote?.[0]?.close?.filter((x: any) => x != null)?.slice(-1)?.[0];
-  if (typeof p !== "number") throw new Error("yahoo: sin precio");
-  return p;
+  }
+  
+  throw lastError || new Error("yahoo: sin precio tras agotar opciones");
 }
 
 export async function GET(
