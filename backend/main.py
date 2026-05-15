@@ -2,10 +2,9 @@ import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-
-from .database.sqlite_adapter import SQLiteAdapter
-from .core.analyzer import StockAnalyzer
-from .core.portfolio import PortfolioManager
+from database.sqlite_adapter import SQLiteAdapter
+from core.analyzer import StockAnalyzer
+from core.portfolio import PortfolioManager
 
 load_dotenv()
 
@@ -20,15 +19,15 @@ app.add_middleware(
 )
 
 # Dependency Injection
-from .api.deps import get_db, get_ai_client, get_analyzer, get_portfolio_manager, get_lesson_manager
+from api.deps import get_db, get_ai_client, get_analyzer, get_portfolio_manager, get_lesson_manager
 
 # Routes
-from .api.routes import analysis, portfolio, chat
-from .core.scheduler import MarketScheduler
-
+from api.routes import analysis, portfolio, chat, learning
+from core.scheduler import MarketScheduler
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["portfolio"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
+app.include_router(learning.router, prefix="/api/learning", tags=["learning"])
 
 @app.on_event("startup")
 async def startup_event():

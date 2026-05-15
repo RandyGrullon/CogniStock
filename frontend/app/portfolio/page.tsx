@@ -17,8 +17,8 @@ import {
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function PortfolioPage() {
-  const { data: status } = useSWR('http://localhost:8000/api/portfolio/status', fetcher, { refreshInterval: 5000 });
-  const { data: trades } = useSWR('http://localhost:8000/api/portfolio/trades', fetcher, { refreshInterval: 5000 });
+  const { data: status } = useSWR('/api/portfolio/status', fetcher, { refreshInterval: 5000 });
+  const { data: trades } = useSWR('/api/portfolio/trades', fetcher, { refreshInterval: 5000 });
 
   const openTrades = trades?.filter((t: any) => t.estado === 'OPEN') || [];
   const closedTrades = trades?.filter((t: any) => t.estado === 'CLOSED') || [];

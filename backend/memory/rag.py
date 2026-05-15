@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from ..database.adapter import DatabaseAdapter
+from database.adapter import DatabaseAdapter
 
 class RAGSystem:
     def __init__(self, db: DatabaseAdapter):

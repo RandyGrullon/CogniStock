@@ -1,0 +1,361 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from 'react';
+import { LineChart, ArrowUpCircle, ArrowDownCircle, Wallet, Activity, History, Trash2, Loader2, Search, X, Brain } from 'lucide-react';
+import TradingChart from '@/components/TradingChart';
+import useSWR, { mutate } from 'swr';
+import { useLivePrice, useLivePrices } from '@/hooks/useLivePrice';
+
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
+export default function TradingPage() {
+  const [selectedTicker, setSelectedTicker] = useState('XAUUSD');
+  const [tickerInput, setTickerInput] = useState('XAUUSD');
+  const [showSearch, setShowSearch] = useState(false);
+  const [amount, setAmount] = useState(0.01);
+  const [reasoning, setReasoning] = useState('');
+  const [isTrading, setIsTrading] = useState(false);
+  const [message, setMessage] = useState({ text: '', type: '' });
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const { data: status } = useSWR('/api/portfolio/status', fetcher, { refreshInterval: 5000 });
+  const { data: trades } = useSWR('/api/portfolio/trades', fetcher, { refreshInterval: 5000 });
+
+  // Búsqueda de activos
+  const { data: searchResults } = useSWR(
+    tickerInput.length >= 2 ? `/api/market/search?q=${tickerInput}` : null,
+    fetcher
+  );
+
+  // Precios para los resultados de búsqueda
+  const searchTickers = Array.isArray(searchResults) ? searchResults.map((r: any) => r.symbol) : [];
+  const searchPrices = useLivePrices(searchTickers);
+
+  // WS directo a TradingView -> precio realmente instantaneo
+  const liveTick = useLivePrice(selectedTicker);
+  // Fallback HTTP por si el WS no engancha al inicio
+  const { data: tickerData } = useSWR(
+    selectedTicker && !liveTick ? `/api/market/ticker/${selectedTicker}` : null,
+    fetcher,
+    { refreshInterval: 1500, revalidateOnFocus: true }
+  );
+  const displayPrice = liveTick?.price ?? tickerData?.price;
+
+  const openTrades = trades?.filter((t: any) => t.estado === 'OPEN') || [];
+
+  // Cerrar búsqueda al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearch(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleTrade = async (side: 'BUY' | 'SELL') => {
+    if (!reasoning) {
+      setMessage({ text: 'Por favor, añade un razonamiento para el Log Brain.', type: 'error' });
+      return;
+    }
+
+    setIsTrading(true);
+    setMessage({ text: '', type: '' });
+
+    try {
+      const response = await fetch('/api/portfolio/trade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticker: selectedTicker,
+          side,
+          amount: parseFloat(amount.toString()),
+          reasoning: `[Manual Trade] ${reasoning}`
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setMessage({ text: `Orden de ${side} ejecutada con éxito para ${selectedTicker}`, type: 'success' });
+        setReasoning('');
+        mutate('/api/portfolio/status');
+        mutate('/api/portfolio/trades');
+      } else {
+        setMessage({ text: result.detail || result.error || 'Error al ejecutar la orden', type: 'error' });
+      }
+    } catch (error) {
+      setMessage({ text: 'Error de conexión con el servidor', type: 'error' });
+    } finally {
+      setIsTrading(false);
+    }
+  };
+
+  const handleCloseTrade = async (tradeId: string) => {
+    try {
+      const response = await fetch(`/api/portfolio/trades/${tradeId}/close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reasoning: 'Cierre manual desde terminal de trading' })
+      });
+
+      if (response.ok) {
+        mutate('/api/portfolio/status');
+        mutate('/api/portfolio/trades');
+      }
+    } catch (error) {
+      console.error('Error closing trade:', error);
+    }
+  };
+
+  const selectAsset = (symbol: string) => {
+    setSelectedTicker(symbol);
+    setTickerInput(symbol);
+    setShowSearch(false);
+  };
+
+  return (
+    <main className="flex-1 p-6 space-y-6 overflow-y-auto bg-[#050505] text-zinc-300">
+      {/* ... Stat Cards ... */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard icon={<Wallet className="text-blue-500" size={20} />} label="Saldo Disponible" value={`$${status?.capital_disponible?.toLocaleString() || '---'}`} subtext="Equity Liquidity" />
+        <StatCard icon={<Activity className="text-emerald-500" size={20} />} label="PnL Abierto" value={`$${openTrades.reduce((acc: number, t: any) => acc + (t.pnl || 0), 0).toFixed(2)}`} subtext="Unrealized" />
+        <StatCard icon={<History className="text-purple-500" size={20} />} label="Trades Cerrados" value={status?.total_trades || 0} subtext="Total History" />
+        <StatCard icon={<LineChart className="text-orange-500" size={20} />} label="Win Rate" value={`${status?.total_trades > 0 ? ((status?.trades_ganadores / status?.total_trades) * 100).toFixed(1) : '0'}%`} subtext="IA Precision" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Chart Area */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-6 relative overflow-visible">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <div className="bg-blue-600/20 p-2 rounded-xl">
+                  <LineChart className="text-blue-500" size={24} />
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center space-x-3">
+                    <h2 className="text-2xl font-black text-white tracking-tighter">{selectedTicker}</h2>
+                    {displayPrice != null && (
+                      <div className="flex items-center space-x-2 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
+                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                        <span className="text-xl font-mono text-emerald-400 font-black">
+                          ${displayPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.2em] mt-1">
+                    {liveTick ? "TradingView WS · Tiempo Real" : "Sincronización Neural Activa"}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="relative" ref={searchRef}>
+                <div className="flex items-center space-x-2 bg-black/40 p-1.5 rounded-xl border border-white/5 w-64 focus-within:border-blue-500/50 transition-all">
+                  <Search size={16} className="text-zinc-500 ml-2" />
+                  <input 
+                    type="text" 
+                    value={tickerInput}
+                    onChange={(e) => {
+                      setTickerInput(e.target.value);
+                      setShowSearch(true);
+                    }}
+                    onFocus={() => setShowSearch(true)}
+                    className="bg-transparent border-none focus:ring-0 text-sm font-mono flex-1 px-2 text-white"
+                    placeholder="Buscar activo..."
+                  />
+                  {tickerInput && (
+                    <button onClick={() => setTickerInput('')} className="p-1 hover:text-white text-zinc-600">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdown de Búsqueda */}
+                {showSearch && searchResults && (
+                  <div className="absolute top-full mt-2 left-0 right-0 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl z-[100] max-h-80 overflow-y-auto custom-scrollbar backdrop-blur-xl">
+                    {searchResults.length > 0 ? searchResults.map((res: any) => (
+                      <button
+                        key={res.symbol}
+                        onClick={() => selectAsset(res.symbol)}
+                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5 last:border-none text-left"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-[10px] font-bold text-blue-500">
+                            {res.symbol.slice(0, 4)}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-white font-mono">{res.symbol}</span>
+                            <span className="text-[10px] text-zinc-500 truncate max-w-[120px]">{res.name}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-mono font-bold text-emerald-400">
+                            {searchPrices[res.symbol.toUpperCase()] 
+                              ? `$${searchPrices[res.symbol.toUpperCase()].price.toLocaleString(undefined, { minimumFractionDigits: 2 })}` 
+                              : '---'}
+                          </p>
+                          <span className="text-[8px] text-zinc-600 uppercase font-bold">{res.exch}</span>
+                        </div>
+                      </button>
+                    )) : (
+                      <div className="p-4 text-center text-xs text-zinc-500 font-mono">No se encontraron activos</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="h-[400px]">
+              <TradingChart ticker={selectedTicker} livePrice={displayPrice} />
+            </div>
+          </div>
+
+          {/* Open Positions Table */}
+          <div className="bg-zinc-900/40 border border-white/5 rounded-3xl overflow-hidden">
+            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Activity className="text-blue-500" size={20} />
+                <h3 className="font-bold text-white">Posiciones Abiertas</h3>
+              </div>
+              <span className="text-xs font-mono px-2.5 py-1 bg-blue-500/10 text-blue-500 rounded-full border border-blue-500/20">
+                {openTrades.length} Activas
+              </span>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="text-xs font-mono text-zinc-500 uppercase tracking-wider border-b border-white/5">
+                    <th className="px-6 py-4 font-medium">Ticker</th>
+                    <th className="px-6 py-4 font-medium">Lotes/Acc</th>
+                    <th className="px-6 py-4 font-medium">Entrada</th>
+                    <th className="px-6 py-4 font-medium">Actual</th>
+                    <th className="px-6 py-4 font-medium">PnL</th>
+                    <th className="px-6 py-4 font-medium text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {openTrades.length > 0 ? openTrades.map((trade: any) => (
+                    <tr key={trade.id} className="group hover:bg-white/[0.02] transition-colors">
+                      <td className="px-6 py-4">
+                        <span className="font-bold text-white">{trade.ticker}</span>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-xs">{trade.acciones}</td>
+                      <td className="px-6 py-4 font-mono text-xs">${trade.precio_entrada?.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-mono text-xs">${trade.precio_actual?.toLocaleString()}</td>
+                      <td className={`px-6 py-4 font-mono text-xs font-bold ${trade.pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {trade.pnl >= 0 ? '+' : ''}${trade.pnl?.toFixed(2)} ({trade.pnl_porcentaje?.toFixed(2)}%)
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => handleCloseTrade(trade.id)}
+                          className="p-2 hover:bg-red-500/10 text-zinc-600 hover:text-red-500 rounded-lg transition-all"
+                          title="Cerrar Posición"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-zinc-500 font-mono text-xs">
+                        No hay posiciones abiertas en este momento
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Autonomy Status Panel */}
+        <div className="space-y-6">
+          <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-6 sticky top-6">
+            <h3 className="text-lg font-bold text-white mb-6 flex items-center space-x-2">
+              <Brain className="text-blue-500" size={20} />
+              <span>Cerebro Autónomo</span>
+            </h3>
+
+            <div className="space-y-6">
+              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Estado: Operando</span>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  CogniStock AI está analizando los mercados globales 24/5. Todas las decisiones de compra, venta y gestión de riesgo son ejecutadas de forma 100% autónoma basándose en modelos de probabilidad.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-xs font-mono">
+                  <span className="text-zinc-500 uppercase">Frecuencia de Análisis</span>
+                  <span className="text-white">Cada 5 minutos</span>
+                </div>
+                <div className="flex justify-between items-center text-xs font-mono">
+                  <span className="text-zinc-500 uppercase">Confianza Mínima</span>
+                  <span className="text-white">70%</span>
+                </div>
+                <div className="flex justify-between items-center text-xs font-mono">
+                  <span className="text-zinc-500 uppercase">Gestión de Riesgo</span>
+                  <span className="text-emerald-500">Activa (Auto SL/TP)</span>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-white/5">
+                <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.2em] mb-4">Última Actividad</p>
+                {trades && trades.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${trades[0].tipo === 'BUY' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                        {trades[0].tipo} {trades[0].ticker}
+                      </span>
+                      <span className="text-[10px] text-zinc-600 font-mono">{new Date(trades[0].fecha_entrada).toLocaleTimeString()}</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 italic line-clamp-3">
+                      "{trades[0].razonamiento}"
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-600 italic">Esperando primera oportunidad del mercado...</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-white/5">
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="text-zinc-500 uppercase">Apalancamiento AI</span>
+                <span className="text-white">Dinámico</span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-mono mt-2">
+                <span className="text-zinc-500 uppercase">Modo de Ejecución</span>
+                <span className="text-blue-500">100% AUTÓNOMO</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function StatCard({ icon, label, value, subtext }: { icon: React.ReactNode, label: string, value: string | number, subtext: string }) {
+  return (
+    <div className="bg-zinc-900/40 border border-white/5 p-5 rounded-3xl space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="p-2 bg-white/5 rounded-xl">
+          {icon}
+        </div>
+        <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-tighter">{subtext}</span>
+      </div>
+      <div>
+        <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider">{label}</p>
+        <p className="text-2xl font-bold text-white tracking-tight">{value}</p>
+      </div>
+    </div>
+  );
+}

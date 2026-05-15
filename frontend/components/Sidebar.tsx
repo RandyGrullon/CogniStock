@@ -1,55 +1,102 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Briefcase, Zap, GraduationCap, Settings, Terminal, MessageSquare } from "lucide-react";
+import { 
+  LayoutDashboard, Briefcase, Zap, GraduationCap, 
+  Settings, Terminal, MessageSquare, LineChart,
+  ChevronLeft, ChevronRight, Menu
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <aside className="w-20 lg:w-64 border-r border-white/5 flex flex-col items-center lg:items-start p-4 lg:p-6 space-y-8 bg-[#0a0a0a]">
-      <div className="flex items-center space-x-3 px-2">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-          <Zap className="text-white w-5 h-5 fill-current" />
+    <motion.aside 
+      initial={false}
+      animate={{ width: isCollapsed ? 80 : 256 }}
+      className="h-screen border-r border-white/5 flex flex-col items-center lg:items-start p-4 lg:p-6 space-y-8 bg-[#0a0a0a] relative z-50 shadow-2xl transition-all duration-300 ease-in-out"
+    >
+      <div className="flex items-center justify-between w-full px-2">
+        <div className="flex items-center space-x-3 overflow-hidden">
+          <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <Zap className="text-white w-5 h-5 fill-current" />
+          </div>
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.span 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="text-xl font-bold tracking-tight text-white whitespace-nowrap"
+              >
+                AI Analyst
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
-        <span className="hidden lg:block text-xl font-bold tracking-tight text-white">AI Analyst</span>
+        
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-1.5 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-white transition-colors"
+        >
+          {isCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
+        </button>
       </div>
 
       <nav className="flex-1 w-full space-y-2">
-        <NavItem href="/" icon={<LayoutDashboard size={20} />} label="Dashboard" active={pathname === "/"} />
-        <NavItem href="/portfolio" icon={<Briefcase size={20} />} label="Portafolio" active={pathname === "/portfolio"} />
-        <NavItem href="/signals" icon={<Zap size={20} />} label="Señales AI" active={pathname === "/signals"} />
-        <NavItem href="/chat" icon={<MessageSquare size={20} />} label="AI Chat" active={pathname === "/chat"} />
-        <NavItem href="/logs" icon={<Terminal size={20} />} label="Logs Brain" active={pathname === "/logs"} />
-        <NavItem href="/learning" icon={<GraduationCap size={20} />} label="Aprendizaje" active={pathname === "/learning"} />
+        <NavItem href="/" icon={<LayoutDashboard size={20} />} label="Dashboard" active={pathname === "/"} isCollapsed={isCollapsed} />
+        <NavItem href="/trading" icon={<LineChart size={20} />} label="Trading" active={pathname === "/trading"} isCollapsed={isCollapsed} />
+        <NavItem href="/portfolio" icon={<Briefcase size={20} />} label="Portafolio" active={pathname === "/portfolio"} isCollapsed={isCollapsed} />
+        <NavItem href="/signals" icon={<Zap size={20} />} label="Señales AI" active={pathname === "/signals"} isCollapsed={isCollapsed} />
+        <NavItem href="/chat" icon={<MessageSquare size={20} />} label="AI Chat" active={pathname === "/chat"} isCollapsed={isCollapsed} />
+        <NavItem href="/logs" icon={<Terminal size={20} />} label="Logs Brain" active={pathname === "/logs"} isCollapsed={isCollapsed} />
+        <NavItem href="/learning" icon={<GraduationCap size={20} />} label="Aprendizaje" active={pathname === "/learning"} isCollapsed={isCollapsed} />
       </nav>
 
       <div className="w-full pt-6 border-t border-white/5 space-y-2">
-        <NavItem href="/settings" icon={<Settings size={20} />} label="Configuración" active={pathname === "/settings"} />
+        <NavItem href="/settings" icon={<Settings size={20} />} label="Configuración" active={pathname === "/settings"} isCollapsed={isCollapsed} />
       </div>
-    </aside>
+    </motion.aside>
   );
 }
 
-function NavItem({ href, icon, label, active = false }: { href: string, icon: React.ReactNode, label: string, active?: boolean }) {
+function NavItem({ href, icon, label, active = false, isCollapsed = false }: { href: string, icon: React.ReactNode, label: string, active?: boolean, isCollapsed?: boolean }) {
   return (
     <Link 
       href={href}
       className={`
-        flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
+        flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative
         ${active 
           ? 'bg-blue-600/10 text-blue-500 border border-blue-500/20' 
           : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200'}
       `}
     >
-      <span className={`${active ? 'text-blue-500' : 'text-zinc-500 group-hover:text-zinc-200'}`}>
+      <span className={`${active ? 'text-blue-500' : 'text-zinc-500 group-hover:text-zinc-200'} flex-shrink-0`}>
         {icon}
       </span>
-      <span className="hidden lg:block text-sm font-medium tracking-wide">
-        {label}
-      </span>
+      
+      <AnimatePresence>
+        {!isCollapsed && (
+          <motion.span 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            className="text-sm font-medium tracking-wide whitespace-nowrap"
+          >
+            {label}
+          </motion.span>
+        )}
+      </AnimatePresence>
+
+      {isCollapsed && (
+        <div className="absolute left-14 px-2 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] text-white opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100] shadow-xl">
+          {label}
+        </div>
+      )}
     </Link>
   );
 }

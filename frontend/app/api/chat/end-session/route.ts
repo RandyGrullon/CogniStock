@@ -1,60 +1,61 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { Groq } from 'groq-sdk';
-import { v4 as uuidv4 } from 'uuid';
+import { NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
+import { getServerSupabase } from "@/lib/supabase/server";
+import { summarizeChatSession } from "@/lib/groq";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const { session_id, history } = await request.json();
+    const { session_id, history, started_at, ended_at } = await request.json();
+    if (!session_id) {
+      return NextResponse.json({ error: "session_id requerido" }, { status: 400 });
+    }
+    const db = getServerSupabase();
 
-    if (!history || history.length < 2) {
-      return NextResponse.json({ status: 'empty' });
+    const transcript = Array.isArray(history) ? history : [];
+    const endedIso = ended_at ?? new Date().toISOString();
+    const startedIso = started_at ?? endedIso;
+    const duration = Math.max(
+      0,
+      Math.floor((new Date(endedIso).getTime() - new Date(startedIso).getTime()) / 1000)
+    );
+
+    let summaryJson: any = null;
+    if (transcript.length >= 2) {
+      try {
+        summaryJson = await summarizeChatSession(transcript);
+      } catch (e) {
+        console.error("summary error:", e);
+      }
     }
 
-    const summaryPrompt = `
-      Eres un auditor de sistemas experto. Resume esta sesión de trading entre el usuario y la IA CogniStock.
-      CONVERSACIÓN: ${JSON.stringify(history)}
-      
-      Genera un JSON con este formato exacto:
-      {
-          "ticker": "CHAT",
-          "recomendacion": "SUMMARY",
-          "confianza": 100,
-          "nivel_riesgo": "N/A",
-          "razonamiento": "Resumen detallado de los puntos clave...",
-          "riesgos": ["temas discutidos"]
-      }
-    `;
-
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [{ role: 'user', content: summaryPrompt }],
-      model: "llama-3.3-70b-versatile",
-      response_format: { type: "json_object" }
-    });
-
-    const summaryData = JSON.parse(chatCompletion.choices[0].message.content || '{}');
-
-    const logEntry = {
-      id: uuidv4(),
-      ticker: "CHAT",
-      fecha: new Date().toISOString(),
-      recomendacion: summaryData.recomendacion || "SUMMARY",
-      confianza: 100,
-      nivel_riesgo: "N/A",
-      razonamiento: summaryData.razonamiento || "Chat Session",
-      riesgos: Array.isArray(summaryData.riesgos) ? summaryData.riesgos : [],
-      datos_tecnicos: "Reporte de Sesión Neural",
-      datos_fundamentales: `ID: ${session_id}`
+    // Upsert sobre chat_sessions
+    const { data: existing } = await db
+      .from("chat_sessions")
+      .select("id")
+      .eq("session_id", session_id)
+      .maybeSingle();
+    const payload = {
+      session_id,
+      started_at: startedIso,
+      ended_at: endedIso,
+      duration_seconds: duration,
+      message_count: transcript.length,
+      transcript,
+      summary: summaryJson,
+      sentiment: summaryJson?.sentiment ?? null,
     };
+    if (existing) {
+      await db.from("chat_sessions").update(payload).eq("session_id", session_id);
+    } else {
+      await db.from("chat_sessions").insert(payload);
+    }
 
-    const { error } = await supabase.from('analisis').insert([logEntry]);
-    if (error) throw error;
-
-    return NextResponse.json({ status: 'success' });
+    return NextResponse.json({ status: "success", duration_seconds: duration });
   } catch (error: any) {
-    console.error('END SESSION ERROR:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("END SESSION ERROR:", error);
+    return NextResponse.json({ error: error?.message ?? String(error) }, { status: 500 });
   }
 }

@@ -7,7 +7,7 @@ class AnalysisRequest(BaseModel):
 class TradeRequest(BaseModel):
     ticker: str
     side: str
-    amount: int
+    amount: float
     reasoning: str
 
 class AnalysisResponse(BaseModel):

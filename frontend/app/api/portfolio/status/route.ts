@@ -1,19 +1,16 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { NextResponse } from "next/server";
+import { getPortfolioStatus } from "@/lib/portfolio";
 
-export const runtime = 'edge';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
-      .from('portafolio')
-      .select('*')
-      .eq('id', 1)
-      .single();
-
-    if (error) throw error;
-    return NextResponse.json(data);
+    const status = await getPortfolioStatus();
+    return NextResponse.json(status, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error?.message ?? String(error) }, { status: 500 });
   }
 }

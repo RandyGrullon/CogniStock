@@ -2,13 +2,13 @@ import os
 from fastapi import Depends
 from dotenv import load_dotenv
 
-from ..database.sqlite_adapter import SQLiteAdapter
-from ..database.supabase_adapter import SupabaseAdapter
-from ..core.analyzer import StockAnalyzer
-from ..core.portfolio import PortfolioManager
-from ..core.ai_client import AIClient
+from database.sqlite_adapter import SQLiteAdapter
+from database.supabase_adapter import SupabaseAdapter
+from core.analyzer import StockAnalyzer
+from core.portfolio import PortfolioManager
+from core.ai_client import AIClient
 
-from ..memory.lessons import LessonManager
+from memory.lessons import LessonManager
 
 load_dotenv()
 

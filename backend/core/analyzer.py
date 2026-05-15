@@ -1,12 +1,12 @@
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any
-from ..data.market_data import get_ticker_data, get_price_history
-from ..data.indicators import calculate_indicators, interpret_indicators
-from .ai_client import AIClient
-from ..data.news import get_company_news, get_market_sentiment
-from ..database.adapter import DatabaseAdapter
-from ..memory.rag import RAGSystem
+from data.market_data import get_ticker_data, get_price_history
+from data.indicators import calculate_indicators, interpret_indicators
+from core.ai_client import AIClient
+from data.news import get_company_news, get_market_sentiment
+from database.adapter import DatabaseAdapter
+from memory.rag import RAGSystem
 
 class StockAnalyzer:
     def __init__(self, db: DatabaseAdapter, ai_client: AIClient):

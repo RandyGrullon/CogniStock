@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Dict, Any
-from ...core.portfolio import PortfolioManager
-from ..schemas import TradeRequest, PortfolioStatus
-from ..deps import get_portfolio_manager, get_db
+from core.portfolio import PortfolioManager
+from api.schemas import TradeRequest, PortfolioStatus
+from api.deps import get_portfolio_manager, get_db
 
 router = APIRouter()
 
@@ -28,6 +28,14 @@ async def execute_trade(request: TradeRequest, pm: PortfolioManager = Depends(ge
         amount=request.amount,
         reasoning=request.reasoning
     )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+@router.post("/trades/{trade_id}/close")
+async def close_trade(trade_id: str, request: Dict[str, str], pm: PortfolioManager = Depends(get_portfolio_manager)):
+    reasoning = request.get("reasoning", "Cierre manual")
+    result = pm.execute_sell(trade_id=trade_id, reasoning=reasoning)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return result

@@ -1,7 +1,7 @@
 import json
 from typing import List, Dict, Any, Optional
 from sqlalchemy import create_engine, Column, String, Integer, Float, Text, MetaData, Table, select, update, insert
-from .adapter import DatabaseAdapter
+from database.adapter import DatabaseAdapter
 
 class SQLiteAdapter(DatabaseAdapter):
     def __init__(self, db_url: str):
@@ -13,7 +13,7 @@ class SQLiteAdapter(DatabaseAdapter):
             Column('id', String, primary_key=True),
             Column('ticker', String, nullable=False),
             Column('tipo', String),
-            Column('acciones', Integer),
+            Column('acciones', Float),
             Column('precio_entrada', Float),
             Column('precio_actual', Float),
             Column('precio_salida', Float),
@@ -74,6 +74,18 @@ class SQLiteAdapter(DatabaseAdapter):
             Column('peor_trade_pnl', Float, default=0.0),
             Column('ultima_actualizacion', String)
         )
+
+        self.daily_summaries = Table(
+            'daily_summaries', self.metadata,
+            Column('id', String, primary_key=True),
+            Column('fecha', String, nullable=False, unique=True),
+            Column('intencion', Text),
+            Column('objetivos', Text),
+            Column('resultado', Text),
+            Column('obstaculos', Text),
+            Column('lecciones', Text),
+            Column('estado', String)
+        )
         
         self.metadata.create_all(self.engine)
 
@@ -127,4 +139,26 @@ class SQLiteAdapter(DatabaseAdapter):
                 conn.execute(insert(self.portafolio).values(id=1, **updates))
             else:
                 conn.execute(update(self.portafolio).where(self.portafolio.c.id == 1).values(**updates))
+            conn.commit()
+
+    def get_recent_analysis(self, limit: int = 10) -> List[Dict[str, Any]]:
+        with self.engine.connect() as conn:
+            query = select(self.analisis).order_by(self.analisis.c.fecha.desc()).limit(limit)
+            result = conn.execute(query)
+            return [dict(row._asdict()) for row in result]
+
+    def insert_daily_summary(self, summary: Dict[str, Any]) -> None:
+        with self.engine.connect() as conn:
+            conn.execute(insert(self.daily_summaries).values(**summary))
+            conn.commit()
+
+    def get_daily_summaries(self, limit: int = 10) -> List[Dict[str, Any]]:
+        with self.engine.connect() as conn:
+            query = select(self.daily_summaries).order_by(self.daily_summaries.c.fecha.desc()).limit(limit)
+            result = conn.execute(query)
+            return [dict(row._asdict()) for row in result]
+
+    def update_daily_summary(self, fecha: str, updates: Dict[str, Any]) -> None:
+        with self.engine.connect() as conn:
+            conn.execute(update(self.daily_summaries).where(self.daily_summaries.c.fecha == fecha).values(**updates))
             conn.commit()

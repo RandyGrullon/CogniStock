@@ -17,10 +17,10 @@ import {
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function Dashboard() {
-  const { data: status } = useSWR('http://localhost:8000/api/portfolio/status', fetcher, { refreshInterval: 5000 });
-  const { data: signals } = useSWR('http://localhost:8000/api/analysis/recent', fetcher, { refreshInterval: 10000 });
-  const { data: lessons } = useSWR('http://localhost:8000/api/portfolio/lessons', fetcher, { refreshInterval: 30000 });
-  const { data: trades } = useSWR('http://localhost:8000/api/portfolio/trades', fetcher, { refreshInterval: 5000 });
+  const { data: status } = useSWR('/api/portfolio/status', fetcher, { refreshInterval: 5000 });
+  const { data: signals } = useSWR('/api/analysis/recent', fetcher, { refreshInterval: 10000 });
+  const { data: lessons } = useSWR('/api/portfolio/lessons', fetcher, { refreshInterval: 30000 });
+  const { data: trades } = useSWR('/api/portfolio/trades', fetcher, { refreshInterval: 5000 });
 
   // Mock historical data for the chart if real historical isn't available yet
   const chartData = [

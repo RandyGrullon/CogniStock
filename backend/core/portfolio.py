@@ -1,15 +1,15 @@
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List
-from ..database.adapter import DatabaseAdapter
-from ..data.market_data import get_ticker_data
+from database.adapter import DatabaseAdapter
+from data.market_data import get_ticker_data
 
 class PortfolioManager:
     def __init__(self, db: DatabaseAdapter, lesson_manager=None):
         self.db = db
         self.lesson_manager = lesson_manager
 
-    def execute_trade(self, ticker: str, side: str, amount: int, reasoning: str) -> Dict[str, Any]:
+    def execute_trade(self, ticker: str, side: str, amount: float, reasoning: str) -> Dict[str, Any]:
         data = get_ticker_data(ticker)
         price = data['price']
         
@@ -53,6 +53,25 @@ class PortfolioManager:
                 "estado": "OPEN"
             }
             self.db.insert_trade(trade)
+
+            # Insert into analysis so it shows in Logs Brain
+            analysis = {
+                "id": str(uuid.uuid4()),
+                "ticker": ticker,
+                "fecha": datetime.now().isoformat(),
+                "recomendacion": side,
+                "confianza": 100,
+                "nivel_riesgo": "MANUAL",
+                "razonamiento": reasoning,
+                "riesgos": "Ejecución manual por el usuario",
+                "precio_objetivo": price * 1.1, # Dummy targets
+                "stop_loss": price * 0.9,
+                "horizonte": "MANUAL",
+                "datos_tecnicos": "Operación manual",
+                "datos_fundamentales": "Operación manual"
+            }
+            self.db.insert_analysis(analysis)
+            
             return trade
             
         return {"error": "Side no soportado por ahora"}

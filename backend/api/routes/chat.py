@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
-from ..deps import get_ai_client, get_db
+from api.deps import get_ai_client, get_db
 import uuid
 from datetime import datetime
 

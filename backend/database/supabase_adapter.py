@@ -1,7 +1,7 @@
 import os
 from typing import List, Dict, Any, Optional
 from supabase import create_client, Client
-from .adapter import DatabaseAdapter
+from database.adapter import DatabaseAdapter
 
 class SupabaseAdapter(DatabaseAdapter):
     def __init__(self, url: str, key: str):
@@ -39,3 +39,17 @@ class SupabaseAdapter(DatabaseAdapter):
 
     def update_portfolio_status(self, updates: Dict[str, Any]) -> None:
         self.supabase.table("portafolio").update(updates).eq("id", 1).execute()
+
+    def get_recent_analysis(self, limit: int = 10) -> List[Dict[str, Any]]:
+        response = self.supabase.table("analisis").select("*").order("fecha", desc=True).limit(limit).execute()
+        return response.data
+
+    def insert_daily_summary(self, summary: Dict[str, Any]) -> None:
+        self.supabase.table("daily_summaries").insert(summary).execute()
+
+    def get_daily_summaries(self, limit: int = 10) -> List[Dict[str, Any]]:
+        response = self.supabase.table("daily_summaries").select("*").order("fecha", desc=True).limit(limit).execute()
+        return response.data
+
+    def update_daily_summary(self, fecha: str, updates: Dict[str, Any]) -> None:
+        self.supabase.table("daily_summaries").update(updates).eq("fecha", fecha).execute()

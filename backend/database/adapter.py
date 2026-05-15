@@ -33,3 +33,19 @@ class DatabaseAdapter(ABC):
     @abstractmethod
     def update_portfolio_status(self, updates: Dict[str, Any]) -> None:
         pass
+
+    @abstractmethod
+    def get_recent_analysis(self, limit: int = 10) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def insert_daily_summary(self, summary: Dict[str, Any]) -> None:
+        pass
+
+    @abstractmethod
+    def get_daily_summaries(self, limit: int = 10) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def update_daily_summary(self, fecha: str, updates: Dict[str, Any]) -> None:
+        pass

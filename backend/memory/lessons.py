@@ -1,7 +1,7 @@
 from typing import Dict, Any
-from .rag import RAGSystem
-from ..database.adapter import DatabaseAdapter
-from ..core.ai_client import AIClient
+from memory.rag import RAGSystem
+from database.adapter import DatabaseAdapter
+from core.ai_client import AIClient
 
 class LessonManager:
     def __init__(self, db: DatabaseAdapter, ai_client: AIClient):

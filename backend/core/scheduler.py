@@ -1,8 +1,10 @@
 import os
+import uuid
+from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from .analyzer import StockAnalyzer
-from .portfolio import PortfolioManager
-from ..database.adapter import DatabaseAdapter
+from core.analyzer import StockAnalyzer
+from core.portfolio import PortfolioManager
+from database.adapter import DatabaseAdapter
 
 class MarketScheduler:
     def __init__(self, db: DatabaseAdapter, analyzer: StockAnalyzer, portfolio: PortfolioManager):
@@ -35,6 +37,17 @@ class MarketScheduler:
             id='open_market_analysis'
         )
 
+        # 9:45am ET - Estrategia Diaria
+        self.scheduler.add_job(
+            self.generate_daily_intentions_task,
+            'cron',
+            day_of_week='mon-fri',
+            hour=9,
+            minute=45,
+            timezone='US/Eastern',
+            id='daily_strategy'
+        )
+
         # 3:50pm ET - Cierre
         self.scheduler.add_job(
             self.run_scheduled_analysis,
@@ -44,6 +57,17 @@ class MarketScheduler:
             minute=50,
             timezone='US/Eastern',
             id='close_market_analysis'
+        )
+
+        # 4:15pm ET - Resumen y Aprendizaje Diario
+        self.scheduler.add_job(
+            self.generate_daily_review_task,
+            'cron',
+            day_of_week='mon-fri',
+            hour=16,
+            minute=15,
+            timezone='US/Eastern',
+            id='daily_review'
         )
 
         # Actualizar P&L cada 15 min durante el mercado
@@ -67,6 +91,24 @@ class MarketScheduler:
 
         self.scheduler.start()
 
+    async def generate_daily_intentions_task(self):
+        print("DEBUG - Generando intenciones diarias autónomas...")
+        try:
+            from api.routes.learning import start_day
+            await start_day(db=self.db, ai_client=self.analyzer.ai_client)
+            print("DEBUG - Intenciones diarias guardadas.")
+        except Exception as e:
+            print(f"ERROR generando intenciones: {e}")
+
+    async def generate_daily_review_task(self):
+        print("DEBUG - Generando revisión diaria autónoma...")
+        try:
+            from api.routes.learning import close_day
+            await close_day(db=self.db, ai_client=self.analyzer.ai_client)
+            print("DEBUG - Revisión diaria completada.")
+        except Exception as e:
+            print(f"ERROR generando revisión: {e}")
+
     async def run_scheduled_analysis(self):
         print(f"Iniciando análisis programado para: {self.tickers}")
         for ticker in self.tickers:
@@ -81,7 +123,7 @@ class MarketScheduler:
                     if status:
                         capital_total = status['capital_total']
                         amount_to_invest = capital_total * 0.02
-                        price = analysis.get('precio_actual', 0) # We might need to ensure this is in analysis
+                        price = analysis.get('precio_actual', 0)
                         if price > 0:
                             shares = int(amount_to_invest / price)
                             if shares > 0:
