@@ -49,9 +49,8 @@ export async function GET(
       const l = ind.low?.[i];
       const c = ind.close?.[i];
       if (o == null || h == null || l == null || c == null) continue;
-      const d = new Date(ts[i] * 1000);
-      const dateStr = d.toISOString().split("T")[0];
-      out.push({ time: dateStr, open: o, high: h, low: l, close: c });
+      // Enviamos el timestamp tal cual (segundos), lightweight-charts lo prefiere asi para escalas de tiempo
+      out.push({ time: ts[i], open: o, high: h, low: l, close: c });
     }
     return NextResponse.json(out, {
       headers: { "Cache-Control": "no-store, max-age=0" },
