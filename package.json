@@ -1,0 +1,8 @@
+{
+  "name": "gemini-trading-system",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}
