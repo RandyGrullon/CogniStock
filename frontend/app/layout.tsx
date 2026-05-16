@@ -11,7 +11,6 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "AI Stock Analyst | Professional Trading Terminal",
   description: "Plataforma de análisis bursátil impulsada por inteligencia artificial autónoma",
-  manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon.svg",
     apple: "/apple-icon",

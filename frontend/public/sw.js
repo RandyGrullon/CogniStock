@@ -48,7 +48,14 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
           return response;
         })
-        .catch(() => cached || new Response("Offline", { status: 503, statusText: "Offline" }));
+        .catch(
+          () =>
+            cached ||
+            new Response("Service unavailable - please check your network connection.", {
+              status: 503,
+              statusText: "Offline",
+            })
+        );
 
       return cached || networkFetch;
     })

@@ -166,7 +166,7 @@ function SidebarContent({
         )}
       </div>
 
-      <nav className="flex-1 w-full space-y-2 mt-4 overflow-y-auto custom-scrollbar">
+      <nav aria-label="Main navigation" className="flex-1 w-full space-y-2 mt-4 overflow-y-auto custom-scrollbar">
         {navItems.map((item) => (
           <NavItem
             key={item.href}
