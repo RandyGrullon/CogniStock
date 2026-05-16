@@ -322,7 +322,10 @@ export default function TradingPage() {
                 <tbody className="divide-y divide-white/5">
                   {openTrades.length > 0 ? openTrades.map((trade: any) => (
                     <tr key={trade.id} className="group hover:bg-white/[0.02] transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 flex items-center space-x-2">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${trade.tipo === 'BUY' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                          {trade.tipo}
+                        </span>
                         <span className="font-bold text-white">{trade.ticker}</span>
                       </td>
                       <td className="px-6 py-4 font-mono text-xs">{trade.acciones}</td>

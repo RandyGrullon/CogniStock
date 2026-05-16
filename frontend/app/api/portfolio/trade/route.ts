@@ -11,15 +11,15 @@ export async function POST(req: Request) {
     if (!ticker || !side || !amount) {
       return NextResponse.json({ error: "ticker, side y amount son requeridos" }, { status: 400 });
     }
-    if (side !== "BUY") {
+    if (side !== "BUY" && side !== "SELL") {
       return NextResponse.json(
-        { error: "Solo BUY soportado por aquí. Usa /api/portfolio/trades/[id]/close para cerrar." },
+        { error: "side debe ser BUY o SELL" },
         { status: 400 }
       );
     }
     const result = await executeTrade({
       ticker: String(ticker).toUpperCase(),
-      side: "BUY",
+      side: side as "BUY" | "SELL",
       amount: Number(amount),
       reasoning: String(reasoning ?? "Sin razonamiento"),
     });

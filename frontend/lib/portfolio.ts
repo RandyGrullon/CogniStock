@@ -89,13 +89,13 @@ export async function getTrades(filter?: {
 
 export async function executeTrade(args: {
   ticker: string;
-  side: "BUY";
+  side: "BUY" | "SELL";
   amount: number;
   reasoning: string;
   analysis?: any;
 }): Promise<Trade | { error: string }> {
   const db = getServerSupabase();
-  const { ticker, amount, reasoning, analysis } = args;
+  const { ticker, amount, reasoning, analysis, side } = args;
   const data = await getTickerData(ticker);
   const price = data.price;
   if (!price || price <= 0) return { error: `No se pudo obtener precio para ${ticker}` };
@@ -111,7 +111,7 @@ export async function executeTrade(args: {
   const trade: Trade = {
     id: uuidv4(),
     ticker,
-    tipo: "BUY",
+    tipo: side,
     acciones: amount,
     precio_entrada: price,
     precio_actual: price,
@@ -149,8 +149,12 @@ export async function executeSell(args: {
 
   const data = await getTickerData(trade.ticker);
   const price = data.price;
-  const pnl = (price - trade.precio_entrada) * trade.acciones;
-  const pnl_pct = (price / trade.precio_entrada - 1) * 100;
+  const pnl = trade.tipo === "SELL" 
+    ? (trade.precio_entrada - price) * trade.acciones 
+    : (price - trade.precio_entrada) * trade.acciones;
+  const pnl_pct = trade.tipo === "SELL"
+    ? (trade.precio_entrada / price - 1) * 100
+    : (price / trade.precio_entrada - 1) * 100;
 
   await db
     .from("trades")
@@ -185,8 +189,12 @@ export async function updateOpenTradesPnl(): Promise<{ updated: number }> {
     try {
       const md = await getTickerData(t.ticker);
       const cur = md.price;
-      const pnl = (cur - t.precio_entrada) * t.acciones;
-      const pnl_pct = (cur / t.precio_entrada - 1) * 100;
+      const pnl = t.tipo === "SELL"
+        ? (t.precio_entrada - cur) * t.acciones
+        : (cur - t.precio_entrada) * t.acciones;
+      const pnl_pct = t.tipo === "SELL"
+        ? (t.precio_entrada / cur - 1) * 100
+        : (cur / t.precio_entrada - 1) * 100;
       await db
         .from("trades")
         .update({ precio_actual: cur, pnl, pnl_porcentaje: pnl_pct })

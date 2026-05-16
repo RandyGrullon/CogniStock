@@ -31,19 +31,33 @@ export async function POST(req: Request) {
 
     const existing = positions?.[0];
 
-    if (analysis.recomendacion === "BUY" && analysis.confianza >= 60 && !existing) {
-      actionResult = await executeTrade({
-        ticker,
-        side: "BUY",
-        amount: 1,
-        reasoning: `[FAST-VISION] ${analysis.razonamiento}`,
-        analysis: analysis
-      });
-    } else if (analysis.recomendacion === "SELL" && analysis.confianza >= 60 && existing) {
-      actionResult = await executeSell({
-        trade_id: existing.id,
-        reasoning: `[FAST-VISION] ${analysis.razonamiento}`
-      });
+    if (!existing) {
+      if (analysis.recomendacion === "BUY" && analysis.confianza >= 60) {
+        actionResult = await executeTrade({
+          ticker,
+          side: "BUY",
+          amount: 1,
+          reasoning: `[FAST-VISION] ${analysis.razonamiento}`,
+          analysis: analysis
+        });
+      } else if (analysis.recomendacion === "SELL" && analysis.confianza >= 60) {
+        actionResult = await executeTrade({
+          ticker,
+          side: "SELL",
+          amount: 1,
+          reasoning: `[FAST-VISION] ${analysis.razonamiento}`,
+          analysis: analysis
+        });
+      }
+    } else {
+      // If we have an existing position and the AI recommends the opposite (e.g., BUY position and AI says SELL, or SELL position and AI says BUY)
+      if ((existing.tipo === "BUY" && analysis.recomendacion === "SELL" && analysis.confianza >= 60) ||
+          (existing.tipo === "SELL" && analysis.recomendacion === "BUY" && analysis.confianza >= 60)) {
+        actionResult = await executeSell({
+          trade_id: existing.id,
+          reasoning: `[FAST-VISION] Cambio de tendencia detectado: ${analysis.razonamiento}`
+        });
+      }
     }
 
     return NextResponse.json({
