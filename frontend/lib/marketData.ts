@@ -92,6 +92,35 @@ async function yahooQuote(ticker: string): Promise<TickerData> {
   };
 }
 
+export async function getBatchQuotes(tickers: string[]): Promise<Record<string, TickerData>> {
+  try {
+    const mappedTickers = tickers.map(mapToYahoo);
+    const data = await fetchJson(`${YAHOO_QUOTE}?symbols=${encodeURIComponent(mappedTickers.join(","))}`);
+    const results = data?.quoteResponse?.result ?? [];
+    
+    const out: Record<string, TickerData> = {};
+    for (const q of results) {
+      const sym = q.symbol;
+      const originalSym = tickers.find(t => mapToYahoo(t) === sym) || sym;
+      out[originalSym] = {
+        price: q.regularMarketPrice ?? 0,
+        change: q.regularMarketChange ?? null,
+        changePercent: q.regularMarketChangePercent ?? null,
+        market_cap: q.marketCap ?? null,
+        pe_ratio: q.trailingPE ?? null,
+        eps: q.epsTrailingTwelveMonths ?? null,
+        beta: null,
+        dividend_yield: q.trailingAnnualDividendYield ?? null,
+        source: "yahoo",
+      };
+    }
+    return out;
+  } catch (e) {
+    console.warn("[marketData] Error in getBatchQuotes:", e);
+    return {};
+  }
+}
+
 export async function getTickerData(ticker: string): Promise<TickerData> {
   // 1. Intento TradingView WS (instantáneo)
   try {

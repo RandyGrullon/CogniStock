@@ -27,15 +27,19 @@ const SECTORS = [
 
 export async function GET() {
   try {
+    // Batch fetch all current quotes (Indices + Sectors) to save API calls
+    const allSymbols = [...INDICES.map(i => i.symbol), ...SECTORS.map(s => s.symbol)];
+    const batchedQuotes = await getBatchQuotes(allSymbols);
+
     // Fetch indices data and charts in parallel
     const indicesPromises = INDICES.map(async (idx) => {
       try {
-        const data = await getTickerData(idx.symbol);
+        const quote = batchedQuotes[idx.symbol];
         const history = await getPriceHistory(idx.symbol, "1d", "15m");
-        const price = data.price;
-        let change = 0;
-        let changePercent = 0;
-        if (history.length > 0) {
+        const price = quote?.price ?? 0;
+        let change = quote?.change ?? 0;
+        let changePercent = quote?.changePercent ?? 0;
+        if (history.length > 0 && !change) {
           const openPrice = history[0].open;
           change = price - openPrice;
           changePercent = (change / openPrice) * 100;
@@ -54,18 +58,18 @@ export async function GET() {
       }
     });
 
-    const sectorsPromises = SECTORS.map(async (sec) => {
-      try {
-        const data = await getTickerData(sec.symbol);
-        return { symbol: sec.symbol, name: sec.name, changePercent: data.changePercent ?? 0, marketCap: data.market_cap ?? 10000000000 };
-      } catch {
-        return { symbol: sec.symbol, name: sec.name, changePercent: 0, marketCap: 10000000000 };
-      }
+    const sectorsData = SECTORS.map((sec) => {
+      const quote = batchedQuotes[sec.symbol];
+      return { 
+        symbol: sec.symbol, 
+        name: sec.name, 
+        changePercent: quote?.changePercent ?? 0, 
+        marketCap: quote?.market_cap ?? 10000000000 
+      };
     });
 
-    const [indicesData, sectorsData, gainers, losers, actives, news] = await Promise.all([
+    const [indicesDataResolved, gainers, losers, actives, news] = await Promise.all([
       Promise.all(indicesPromises),
-      Promise.all(sectorsPromises),
       getMarketMovers("day_gainers", 5),
       getMarketMovers("day_losers", 5),
       getMarketMovers("most_actives", 5),
@@ -73,7 +77,7 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-      assets: indicesData,
+      assets: indicesDataResolved,
       sectors: sectorsData,
       movers: { gainers, losers, actives },
       news: news,
