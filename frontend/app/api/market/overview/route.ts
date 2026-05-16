@@ -57,7 +57,7 @@ export async function GET() {
     const sectorsPromises = SECTORS.map(async (sec) => {
       try {
         const data = await getTickerData(sec.symbol);
-        return { symbol: sec.symbol, name: sec.name, changePercent: data.changePercent ?? 0, marketCap: data.marketCap ?? 10000000000 };
+        return { symbol: sec.symbol, name: sec.name, changePercent: data.changePercent ?? 0, marketCap: data.market_cap ?? 10000000000 };
       } catch {
         return { symbol: sec.symbol, name: sec.name, changePercent: 0, marketCap: 10000000000 };
       }

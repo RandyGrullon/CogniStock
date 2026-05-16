@@ -22,6 +22,8 @@ export type Candle = {
 
 export type TickerData = {
   price: number;
+  change?: number | null;
+  changePercent?: number | null;
   market_cap?: number | null;
   pe_ratio?: number | null;
   eps?: number | null;
@@ -79,6 +81,8 @@ async function yahooQuote(ticker: string): Promise<TickerData> {
   const q = data?.quoteResponse?.result?.[0] ?? {};
   return {
     price: q.regularMarketPrice ?? (await yahooFastPrice(ticker)),
+    change: q.regularMarketChange ?? null,
+    changePercent: q.regularMarketChangePercent ?? null,
     market_cap: q.marketCap ?? null,
     pe_ratio: q.trailingPE ?? null,
     eps: q.epsTrailingTwelveMonths ?? null,
