@@ -42,7 +42,7 @@ export default function Dashboard() {
       {/* SECTION: Top Bar Summary */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex flex-wrap items-center gap-2 sm:gap-3">
             <span className="bg-gradient-to-r from-blue-500 to-indigo-400 bg-clip-text text-transparent">CogniStock</span> 
             <span className="text-zinc-700">|</span> 
             <span className="text-zinc-200 uppercase text-sm tracking-[0.3em] font-light">Terminal v1.0</span>
@@ -50,12 +50,12 @@ export default function Dashboard() {
           <p className="text-zinc-500 text-sm font-medium mt-1">Supervisión autónoma activa • Motor Llama-3-70b Groq</p>
         </div>
         
-        <div className="flex items-center gap-4 bg-white/5 border border-white/5 p-1.5 rounded-2xl">
-            <div className="flex items-center gap-2 px-4 py-2 bg-blue-600/10 border border-blue-500/20 rounded-xl">
+        <div className="flex flex-wrap items-center gap-3 bg-white/5 border border-white/5 p-1.5 rounded-2xl">
+            <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600/10 border border-blue-500/20 rounded-xl">
                 <Cpu size={14} className="text-blue-500" />
                 <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">IA Operational</span>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2">
+            <div className="flex items-center gap-2 px-3 sm:px-4 py-2">
                 <Database size={14} className="text-zinc-500" />
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Supabase Cloud</span>
             </div>

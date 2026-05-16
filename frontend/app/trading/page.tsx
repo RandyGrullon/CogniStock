@@ -270,8 +270,8 @@ export default function TradingPage() {
                 </div>
               </div>
               
-              <div className="relative" ref={searchRef}>
-                <div className="flex items-center space-x-2 bg-black/40 p-1.5 rounded-xl border border-white/5 w-64 focus-within:border-blue-500/50 transition-all">
+              <div className="relative w-full sm:w-auto" ref={searchRef}>
+                <div className="flex items-center space-x-2 bg-black/40 p-1.5 rounded-xl border border-white/5 w-full sm:w-64 focus-within:border-blue-500/50 transition-all">
                   <Search size={16} className="text-zinc-500 ml-2" />
                   <input 
                     type="text" 
@@ -326,7 +326,7 @@ export default function TradingPage() {
               </div>
             </div>
 
-            <div ref={chartContainerRef} className="h-[440px] bg-gradient-to-b from-transparent to-black/20 rounded-2xl p-2 border border-white/[0.02]">
+            <div ref={chartContainerRef} className="h-[320px] sm:h-[440px] bg-gradient-to-b from-transparent to-black/20 rounded-2xl p-2 border border-white/[0.02]">
               <TradingChart 
                 ticker={selectedTicker} 
                 livePrice={displayPrice} 
@@ -401,7 +401,7 @@ export default function TradingPage() {
 
         {/* AI Autonomy Status Panel */}
         <div className="space-y-6">
-          <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-6 sticky top-6">
+          <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-6 lg:sticky lg:top-6">
             <h3 className="text-lg font-bold text-white mb-6 flex items-center space-x-2">
               <Brain className="text-blue-500" size={20} />
               <span>Cerebro Autónomo</span>

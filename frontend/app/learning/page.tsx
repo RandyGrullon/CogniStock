@@ -36,7 +36,7 @@ export default function LearningPage() {
   return (
     <div className="space-y-12 pb-20">
       <header>
-        <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
           Evolución & Estrategia
         </h1>
         <p className="text-zinc-500 font-medium">
