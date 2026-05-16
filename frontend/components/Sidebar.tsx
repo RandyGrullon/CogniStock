@@ -80,6 +80,7 @@ export default function Sidebar() {
               exit={{ x: -280 }}
               transition={{ type: "spring", stiffness: 280, damping: 30 }}
               role="dialog"
+              aria-modal="true"
               aria-label="Navigation menu"
               className="lg:hidden fixed left-0 top-0 z-50 h-dvh w-[280px] border-r border-white/10 bg-[#0a0a0a] p-4"
             >
@@ -168,7 +169,7 @@ function SidebarContent({
         )}
       </div>
 
-      <nav aria-label="Main navigation" className="flex-1 w-full space-y-2 mt-4 overflow-y-auto custom-scrollbar">
+      <nav tabIndex={0} aria-label="Main navigation" className="flex-1 w-full space-y-2 mt-4 overflow-y-auto custom-scrollbar">
         {navItems.map((item) => (
           <NavItem
             key={item.href}
