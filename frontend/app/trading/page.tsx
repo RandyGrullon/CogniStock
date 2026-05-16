@@ -3,19 +3,57 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LineChart, ArrowUpCircle, ArrowDownCircle, Wallet, Activity, History, Trash2, Loader2, Search, X, Brain } from 'lucide-react';
 import TradingChart from '@/components/TradingChart';
-import useSWR, { mutate } from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { useLivePrice, useLivePrices } from '@/hooks/useLivePrice';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function TradingPage() {
+  const { mutate } = useSWRConfig();
   const [selectedTicker, setSelectedTicker] = useState('XAUUSD');
   const [tickerInput, setTickerInput] = useState('XAUUSD');
   const [showSearch, setShowSearch] = useState(false);
   const [amount, setAmount] = useState(0.01);
   const [reasoning, setReasoning] = useState('');
   const [isTrading, setIsTrading] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' });
+  const [aiState, setAiState] = useState<{
+    thought: string;
+    confidence: number;
+    recommendation: string;
+    isAnalyzing: boolean;
+  }>({
+    thought: "Esperando activación de visión neural...",
+    confidence: 0,
+    recommendation: "STANDBY",
+    isAnalyzing: false
+  });
+
+  const handleAiVision = async () => {
+    setAiState(prev => ({ ...prev, isAnalyzing: true }));
+    try {
+      const response = await fetch('/api/portfolio/ai-vision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker: selectedTicker })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setAiState({
+          thought: data.thought,
+          confidence: data.confidence,
+          recommendation: data.recommendation,
+          isAnalyzing: false
+        });
+        mutate('/api/portfolio/status');
+        mutate('/api/portfolio/trades');
+      }
+    } catch (error) {
+      console.error("AI Vision Error:", error);
+      setAiState(prev => ({ ...prev, isAnalyzing: false }));
+    }
+  };
+
+  // ... (dentro del return, panel derecho)
   const [timeframe, setTimeframe] = useState('1d'); // Nueva temporalidad
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -289,59 +327,75 @@ export default function TradingPage() {
 
             <div className="space-y-6">
               <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
-                <div className="flex items-center space-x-3 mb-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                  <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Estado: Operando</span>
-                </div>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  CogniStock AI está analizando los mercados globales 24/5. Todas las decisiones de compra, venta y gestión de riesgo son ejecutadas de forma 100% autónoma basándose en modelos de probabilidad.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-xs font-mono">
-                  <span className="text-zinc-500 uppercase">Frecuencia de Análisis</span>
-                  <span className="text-white">Cada 5 minutos</span>
-                </div>
-                <div className="flex justify-between items-center text-xs font-mono">
-                  <span className="text-zinc-500 uppercase">Confianza Mínima</span>
-                  <span className="text-white">70%</span>
-                </div>
-                <div className="flex justify-between items-center text-xs font-mono">
-                  <span className="text-zinc-500 uppercase">Gestión de Riesgo</span>
-                  <span className="text-emerald-500">Activa (Auto SL/TP)</span>
-                </div>
-              </div>
-
-              <div className="pt-6 border-t border-white/5">
-                <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.2em] mb-4">Última Actividad</p>
-                {trades && trades.length > 0 ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${trades[0].tipo === 'BUY' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                        {trades[0].tipo} {trades[0].ticker}
-                      </span>
-                      <span className="text-[10px] text-zinc-600 font-mono">{new Date(trades[0].fecha_entrada).toLocaleTimeString()}</span>
-                    </div>
-                    <p className="text-[11px] text-zinc-400 italic line-clamp-3">
-                      "{trades[0].razonamiento}"
-                    </p>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${aiState.isAnalyzing ? 'bg-blue-400 animate-ping' : 'bg-emerald-500'}`} />
+                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">
+                      {aiState.isAnalyzing ? 'Procesando Visión...' : 'Visión Neural Activa'}
+                    </span>
                   </div>
-                ) : (
-                  <p className="text-xs text-zinc-600 italic">Esperando primera oportunidad del mercado...</p>
-                )}
+                  {aiState.confidence > 0 && (
+                    <span className="text-[10px] font-mono font-bold bg-blue-500/20 px-2 py-0.5 rounded text-blue-300">
+                      Confianza: {aiState.confidence}%
+                    </span>
+                  )}
+                </div>
+                
+                <div className="min-h-[100px] flex flex-col justify-center">
+                  <p className="text-xs text-zinc-300 leading-relaxed italic font-medium">
+                    &quot;{aiState.thought}&quot;
+                  </p>
+                </div>
+
+                <button 
+                  onClick={handleAiVision}
+                  disabled={aiState.isAnalyzing}
+                  className="w-full mt-6 flex items-center justify-center space-x-2 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-blue-500/20"
+                >
+                  {aiState.isAnalyzing ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <>
+                      <Zap size={14} className="fill-current" />
+                      <span>Escanear Gráfico & Operar</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-zinc-500 uppercase font-bold mb-1">Postura IA</p>
+                  <p className={`text-xs font-mono font-bold ${aiState.recommendation === 'BUY' ? 'text-emerald-400' : aiState.recommendation === 'SELL' ? 'text-red-400' : 'text-zinc-400'}`}>
+                    {aiState.recommendation}
+                  </p>
+                </div>
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-zinc-500 uppercase font-bold mb-1">Modo de Red</p>
+                  <p className="text-xs font-mono font-bold text-blue-400">AUTÓNOMO</p>
+                </div>
               </div>
             </div>
 
             <div className="mt-8 pt-6 border-t border-white/5">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-zinc-500 uppercase">Apalancamiento AI</span>
-                <span className="text-white">Dinámico</span>
-              </div>
-              <div className="flex items-center justify-between text-xs font-mono mt-2">
-                <span className="text-zinc-500 uppercase">Modo de Ejecución</span>
-                <span className="text-blue-500">100% AUTÓNOMO</span>
-              </div>
+              <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.2em] mb-4">Registro de Consciencia</p>
+              {trades && trades.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${trades[0].tipo === 'BUY' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                      {trades[0].tipo} {trades[0].ticker}
+                    </span>
+                    <span className="text-[9px] text-zinc-600 font-mono">{new Date(trades[0].fecha_entrada).toLocaleTimeString()}</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 italic line-clamp-4 bg-black/20 p-3 rounded-lg border border-white/5">
+                    &quot;{trades[0].razonamiento}&quot;
+                  </p>
+                </div>
+              ) : (
+                <div className="p-8 text-center border-2 border-dashed border-white/5 rounded-2xl">
+                  <p className="text-[10px] text-zinc-600 italic">Esperando señal de mercado...</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

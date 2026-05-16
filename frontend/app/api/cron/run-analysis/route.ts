@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 function getTickers(): string[] {
-  const raw = process.env.TICKERS_MONITOREADOS ?? "TSLA,NVDA,AAPL,MSFT,META,AMZN,AMD,GOOGL";
+  const raw = process.env.TICKERS_MONITOREADOS ?? "XAUUSD,TSLA,NVDA,AAPL,MSFT,META,AMZN,AMD,GOOGL";
   return raw
     .split(",")
     .map((s) => s.trim().toUpperCase())
@@ -72,16 +72,35 @@ async function processTicker(ticker: string, db: ReturnType<typeof getServerSupa
   // 3. Decisión de operar
   let executed: any = { action: "NO-OP", reason: "Confianza/recomendación insuficiente" };
   const threshold = getConfidenceThreshold();
+  
+  // Buscar si ya tenemos una posición abierta para este ticker
+  const openTrades = await db.from("trades").select("*").eq("ticker", ticker).eq("estado", "OPEN");
+  const currentPosition = openTrades.data?.[0];
+
   if (analysis.recomendacion === "BUY" && analysis.confianza >= threshold) {
-    const trade = await executeTrade({
-      ticker,
-      side: "BUY",
-      amount: 1,
-      reasoning: `[AUTO ${analysis.confianza}%] ${analysis.razonamiento?.slice(0, 200) ?? ""}`,
-      analysis: analysis,
-    });
-    executed =
-      "error" in trade ? { action: "BUY_FAILED", reason: trade.error } : { action: "BUY", trade_id: trade.id };
+    if (currentPosition) {
+      executed = { action: "HOLD", reason: "Ya hay una posición abierta" };
+    } else {
+      const trade = await executeTrade({
+        ticker,
+        side: "BUY",
+        amount: 1, // Podríamos hacerlo dinámico después
+        reasoning: `[AUTO ${analysis.confianza}%] ${analysis.razonamiento?.slice(0, 200) ?? ""}`,
+        analysis: analysis,
+      });
+      executed = "error" in trade ? { action: "BUY_FAILED", reason: trade.error } : { action: "BUY", trade_id: trade.id };
+    }
+  } else if (analysis.recomendacion === "SELL" && analysis.confianza >= threshold) {
+    if (currentPosition) {
+      const { executeSell } = await import("@/lib/portfolio");
+      const result = await executeSell({
+        trade_id: currentPosition.id,
+        reasoning: `[AUTO SELL ${analysis.confianza}%] ${analysis.razonamiento?.slice(0, 200) ?? ""}`
+      });
+      executed = "error" in result ? { action: "SELL_FAILED", reason: result.error } : { action: "SELL", trade_id: currentPosition.id };
+    } else {
+      executed = { action: "NO-OP", reason: "Recomendación SELL pero no hay posición abierta" };
+    }
   }
 
   // 4. POST-action: reflexión
