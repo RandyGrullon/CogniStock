@@ -7,7 +7,6 @@ import {
   IChartApi,
   ISeriesApi,
   CandlestickSeries,
-  type Time,
 } from 'lightweight-charts';
 import useSWR from 'swr';
 
@@ -22,9 +21,8 @@ export interface TradingChartProps {
 export default function TradingChart({ ticker, markers = [], livePrice }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const priceLineRef = useRef<{ applyOptions: (o: { price: number }) => void } | null>(null);
-  const tradePriceLinesRef = useRef<any[]>([]);
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const priceLineRef = useRef<any>(null);
 
   const { data: chartData, error } = useSWR(`/api/analysis/chart/${ticker}`, fetcher, {
     revalidateOnFocus: false,
@@ -34,12 +32,10 @@ export default function TradingChart({ ticker, markers = [], livePrice }: Tradin
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    // Create chart with a slight delay to ensure container width is calculated correctly by the browser
     const container = chartContainerRef.current;
-    const width = container.clientWidth || 600;
     
     const chart = createChart(container, {
-      width: width,
+      width: container.clientWidth || 600,
       height: 400,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
@@ -54,56 +50,35 @@ export default function TradingChart({ ticker, markers = [], livePrice }: Tradin
       rightPriceScale: {
         borderColor: 'rgba(255, 255, 255, 0.05)',
         autoScale: true,
-        scaleMargins: {
-          top: 0.1,
-          bottom: 0.1,
-        },
       },
       timeScale: {
         borderColor: 'rgba(255, 255, 255, 0.05)',
         timeVisible: true,
-        secondsVisible: false,
-      },
-      crosshair: {
-        mode: 0, // Normal
-        vertLine: {
-          color: 'rgba(59, 130, 246, 0.4)',
-          width: 1,
-          style: 3,
-          labelBackgroundColor: '#2563eb',
-        },
-        horzLine: {
-          color: 'rgba(59, 130, 246, 0.4)',
-          width: 1,
-          style: 3,
-          labelBackgroundColor: '#2563eb',
-        },
       },
     });
 
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#ef4444',
-      borderVisible: false,
-      wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
-    });
+    // Use a very safe way to add the series
+    const series = (chart as any).addCandlestickSeries ? 
+                   (chart as any).addCandlestickSeries({
+                      upColor: '#10b981',
+                      downColor: '#ef4444',
+                      borderVisible: false,
+                      wickUpColor: '#10b981',
+                      wickDownColor: '#ef4444',
+                   }) : 
+                   chart.addSeries(CandlestickSeries, {
+                      upColor: '#10b981',
+                      downColor: '#ef4444',
+                      borderVisible: false,
+                      wickUpColor: '#10b981',
+                      wickDownColor: '#ef4444',
+                   });
 
     chartRef.current = chart;
-    candlestickSeriesRef.current = candlestickSeries;
-
-    // Price line for current price
-    priceLineRef.current = candlestickSeries.createPriceLine({
-      price: 0,
-      color: '#3b82f6',
-      lineWidth: 2,
-      lineStyle: 0,
-      axisLabelVisible: true,
-      title: 'LIVE',
-    });
+    seriesRef.current = series;
 
     const handleResize = () => {
-      if (container) {
+      if (container && chart) {
         chart.applyOptions({ width: container.clientWidth });
       }
     };
@@ -112,111 +87,76 @@ export default function TradingChart({ ticker, markers = [], livePrice }: Tradin
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      chart.remove();
+      try {
+        chart.remove();
+      } catch (e) {}
       chartRef.current = null;
-      candlestickSeriesRef.current = null;
+      seriesRef.current = null;
       priceLineRef.current = null;
-      tradePriceLinesRef.current = [];
     };
   }, []);
 
-  // Sync data
+  // Sync data and markers
   useEffect(() => {
-    if (chartData && Array.isArray(chartData) && candlestickSeriesRef.current) {
-      candlestickSeriesRef.current.setData(chartData);
-      
-      const series = candlestickSeriesRef.current as any;
-
-      // Clear old price lines
-      tradePriceLinesRef.current.forEach(line => {
-        try {
-          series.removePriceLine(line);
-        } catch(e) {}
-      });
-      tradePriceLinesRef.current = [];
-      
-      if (markers && markers.length > 0) {
-        const formattedMarkers: any[] = [];
-        const newPriceLines: any[] = [];
-
-        markers.forEach(m => {
-          // Handle Analysis objects
-          if (m.fecha && !m.fecha_entrada) {
-            const dateStr = m.fecha.split('T')[0];
-            formattedMarkers.push({
-              time: dateStr,
-              position: m.recomendacion === 'BUY' ? 'belowBar' : 'aboveBar',
-              color: m.recomendacion === 'BUY' ? '#10b981' : '#3b82f6',
-              shape: m.recomendacion === 'BUY' ? 'arrowUp' : 'arrowDown',
-              text: m.recomendacion,
-            });
-          }
-          
-          // Handle Trade objects
-          if (m.fecha_entrada) {
-            const entryDate = m.fecha_entrada.split('T')[0];
-            formattedMarkers.push({
-              time: entryDate,
-              position: 'belowBar',
-              color: '#10b981',
-              shape: 'arrowUp',
-              text: `BUY @ $${m.precio_entrada}`,
-            });
-            
-            if (m.fecha_salida && m.estado === 'CLOSED') {
-              const exitDate = m.fecha_salida.split('T')[0];
-              formattedMarkers.push({
-                time: exitDate,
-                position: 'aboveBar',
-                color: m.pnl >= 0 ? '#10b981' : '#ef4444',
-                shape: 'arrowDown',
-                text: `SELL @ $${m.precio_salida}`,
-              });
-            }
-
-            // Open Position Price Lines
-            if (m.estado === 'OPEN' && m.ticker === ticker) {
-              newPriceLines.push(series.createPriceLine({
-                price: m.precio_entrada,
-                color: '#3b82f6',
-                lineWidth: 1,
-                lineStyle: 2,
-                axisLabelVisible: true,
-                title: 'Entry',
-              }));
-            }
-          }
-        });
+    const series = seriesRef.current as any;
+    if (series && chartData && Array.isArray(chartData)) {
+      try {
+        series.setData(chartData);
         
-        tradePriceLinesRef.current = newPriceLines;
-
-        // Map strings to timestamps and dedup
-        const finalMarkers = formattedMarkers.map(marker => {
-            if (typeof marker.time === 'string' && chartData[0] && typeof chartData[0].time === 'number') {
-                return { ...marker, time: Math.floor(new Date(marker.time).getTime() / 1000) };
+        // Only attempt to set markers if the function exists and we have markers
+        if (markers && markers.length > 0 && typeof series.setMarkers === 'function') {
+          const formattedMarkers = markers.map(m => {
+            const isTrade = !!m.fecha_entrada;
+            const date = isTrade ? m.fecha_entrada : m.fecha;
+            if (!date) return null;
+            
+            // Format time correctly for lightweight-charts
+            let timeValue: number;
+            try {
+              timeValue = Math.floor(new Date(date).getTime() / 1000);
+            } catch (e) {
+              return null;
             }
-            return marker;
-        })
-        .sort((a, b) => (typeof a.time === 'number' && typeof b.time === 'number') ? a.time - b.time : 0)
-        .filter((marker, index, self) => 
-            index === self.findIndex((t) => t.time === marker.time && t.text === marker.text)
-        );
 
-        series.setMarkers(finalMarkers);
-      } else {
-        series.setMarkers([]);
-      }
-      
-      if (chartData.length > 0) {
-        chartRef.current?.timeScale().fitContent();
+            // Verify time exists in data to avoid library issues
+            const exists = chartData.some(d => d.time === timeValue || (typeof d.time === 'string' && d.time.includes(date.split('T')[0])));
+            if (!exists) return null;
+
+            return {
+              time: timeValue,
+              position: isTrade ? 'belowBar' : (m.recomendacion === 'BUY' ? 'belowBar' : 'aboveBar'),
+              color: (isTrade || m.recomendacion === 'BUY') ? '#10b981' : '#3b82f6',
+              shape: (isTrade || m.recomendacion === 'BUY') ? 'arrowUp' : 'arrowDown',
+              text: isTrade ? `BUY @ $${m.precio_entrada}` : m.recomendacion,
+            };
+          }).filter(Boolean);
+
+          if (formattedMarkers.length > 0) {
+            series.setMarkers(formattedMarkers);
+          }
+        }
+      } catch (e) {
+        console.error("Chart sync error:", e);
       }
     }
-  }, [chartData, markers, ticker]);
+  }, [chartData, markers]);
 
-  // Live Price update
+  // Live Price update - separate to minimize logic
   useEffect(() => {
-    if (priceLineRef.current && livePrice) {
-      priceLineRef.current.applyOptions({ price: livePrice });
+    const series = seriesRef.current as any;
+    if (series && livePrice && typeof series.createPriceLine === 'function') {
+      try {
+        if (!priceLineRef.current) {
+          priceLineRef.current = series.createPriceLine({
+            price: livePrice,
+            color: '#3b82f6',
+            lineWidth: 2,
+            title: 'LIVE',
+          });
+        } else {
+          priceLineRef.current.applyOptions({ price: livePrice });
+        }
+      } catch (e) {}
     }
   }, [livePrice]);
 
