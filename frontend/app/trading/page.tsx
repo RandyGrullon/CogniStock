@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { LineChart, ArrowUpCircle, ArrowDownCircle, Wallet, Activity, History, Trash2, Loader2, Search, X, Brain } from 'lucide-react';
+import { LineChart, ArrowUpCircle, ArrowDownCircle, Wallet, Activity, History, Trash2, Loader2, Search, X, Brain, CheckCircle2, XCircle } from 'lucide-react';
 import TradingChart from '@/components/TradingChart';
 import useSWR, { useSWRConfig } from 'swr';
 import { useLivePrice, useLivePrices } from '@/hooks/useLivePrice';
@@ -16,6 +16,7 @@ export default function TradingPage() {
   const [amount, setAmount] = useState(0.01);
   const [reasoning, setReasoning] = useState('');
   const [isTrading, setIsTrading] = useState(false);
+  const [message, setMessage] = useState({ text: '', type: '' });
   const [aiState, setAiState] = useState<{
     thought: string;
     confidence: number;
@@ -30,6 +31,7 @@ export default function TradingPage() {
 
   const handleAiVision = async () => {
     setAiState(prev => ({ ...prev, isAnalyzing: true }));
+    setMessage({ text: '', type: '' });
     try {
       const response = await fetch('/api/portfolio/ai-vision', {
         method: 'POST',
@@ -44,11 +46,18 @@ export default function TradingPage() {
           recommendation: data.recommendation,
           isAnalyzing: false
         });
+        if (data.action !== "WATCHING") {
+          setMessage({ text: `IA detectó oportunidad y ejecutó ${data.action}`, type: 'success' });
+        }
         mutate('/api/portfolio/status');
         mutate('/api/portfolio/trades');
+      } else {
+        setMessage({ text: `Error en visión neural: ${data.error || 'Desconocido'}`, type: 'error' });
+        setAiState(prev => ({ ...prev, isAnalyzing: false }));
       }
     } catch (error) {
       console.error("AI Vision Error:", error);
+      setMessage({ text: 'Error al conectar con el motor de visión', type: 'error' });
       setAiState(prev => ({ ...prev, isAnalyzing: false }));
     }
   };
@@ -156,6 +165,19 @@ export default function TradingPage() {
 
   return (
     <main className="flex-1 p-6 space-y-6 overflow-y-auto bg-[#050505] text-zinc-300">
+      {/* Mensajes de feedback */}
+      {message.text && (
+        <div className={`p-4 rounded-2xl border ${message.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'} flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-300`}>
+          <div className="flex items-center space-x-3">
+            {message.type === 'error' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
+            <p className="text-xs font-bold font-mono uppercase tracking-widest">{message.text}</p>
+          </div>
+          <button onClick={() => setMessage({ text: '', type: '' })} className="hover:opacity-70 transition-opacity">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* ... Stat Cards ... */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard icon={<Wallet className="text-blue-500" size={20} />} label="Saldo Disponible" value={`$${status?.capital_disponible?.toLocaleString() || '---'}`} subtext="Equity Liquidity" />
