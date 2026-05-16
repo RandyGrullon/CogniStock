@@ -152,6 +152,15 @@ export class TradingViewLiveClient {
       console.warn("TV WS: Maximo de intentos alcanzado. Usando fallback HTTP.");
       return;
     }
+
+    try {
+      this.ws = this.wsFactory(TV_WS_URL, { origin: TV_ORIGIN });
+      this.connectCount++;
+    } catch (e) {
+      this.scheduleReconnect();
+      return;
+    }
+
     const ws = this.ws!;
 
     const handleOpen = () => {
