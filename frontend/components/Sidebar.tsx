@@ -79,6 +79,8 @@ export default function Sidebar() {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: "spring", stiffness: 280, damping: 30 }}
+              role="dialog"
+              aria-label="Navigation menu"
               className="lg:hidden fixed left-0 top-0 z-50 h-dvh w-[280px] border-r border-white/10 bg-[#0a0a0a] p-4"
             >
               <SidebarContent

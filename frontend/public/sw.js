@@ -51,7 +51,7 @@ self.addEventListener("fetch", (event) => {
         .catch(
           () =>
             cached ||
-            new Response("Service unavailable - please check your network connection.", {
+            new Response("Servicio no disponible - por favor verifica tu conexión de red.", {
               status: 503,
               statusText: "Offline",
             })
