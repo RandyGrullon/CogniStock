@@ -112,7 +112,7 @@ Responde ÚNICAMENTE en JSON con esta estructura:
       { type: "text", text: prompt },
       { type: "image_url", image_url: { url: input.image } }
     ];
-    modelOverride = "llama-3.2-90b-vision-preview";
+    modelOverride = "llama-3.2-11b-vision-preview";
   }
 
   return groqJson<AnalysisResult>([

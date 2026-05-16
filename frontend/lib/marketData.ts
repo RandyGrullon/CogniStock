@@ -139,6 +139,23 @@ export async function getTickerNews(ticker: string): Promise<any[]> {
   }
 }
 
+export async function getMarketMovers(type: 'day_gainers' | 'day_losers' | 'most_actives' = 'day_gainers', count = 5) {
+  try {
+    const data = await fetchJson(`https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&lang=en-US&region=US&scrIds=${type}&count=${count}`);
+    const quotes = data?.finance?.result?.[0]?.quotes ?? [];
+    return quotes.map((q: any) => ({
+      symbol: q.symbol,
+      name: q.shortName || q.longName,
+      price: q.regularMarketPrice,
+      change: q.regularMarketChange,
+      percent: q.regularMarketChangePercent
+    }));
+  } catch (e) {
+    console.warn(`[marketData] Error fetching movers ${type}:`, e);
+    return [];
+  }
+}
+
 export async function getGlobalMarketOverview(): Promise<string> {
   try {
     const indices = ["^GSPC", "^IXIC", "^DJI", "^VIX"];
@@ -153,7 +170,17 @@ export async function getGlobalMarketOverview(): Promise<string> {
         return `${sym}: N/A`;
       }
     }));
-    return `Market Snapshot: ${quotes.join(", ")}`;
+    
+    // Inyectamos también los top gainers y losers
+    const [gainers, losers] = await Promise.all([
+      getMarketMovers('day_gainers', 3),
+      getMarketMovers('day_losers', 3)
+    ]);
+    
+    const gainersStr = gainers.map(g => `${g.symbol} (+${g.percent?.toFixed(2)}%)`).join(", ");
+    const losersStr = losers.map(l => `${l.symbol} (${l.percent?.toFixed(2)}%)`).join(", ");
+
+    return `Market Snapshot: ${quotes.join(", ")}\nTop Gainers: ${gainersStr}\nTop Losers: ${losersStr}`;
   } catch (e) {
     return "Market Snapshot: Unavailable";
   }

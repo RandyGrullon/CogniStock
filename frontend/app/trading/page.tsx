@@ -39,6 +39,8 @@ export default function TradingPage() {
       let imageBase64 = undefined;
       if (chartContainerRef.current) {
         try {
+          // Breve pausa para asegurar render completo
+          await new Promise(r => setTimeout(r, 300));
           // Capturamos el gráfico antes de mandarlo
           imageBase64 = await toJpeg(chartContainerRef.current, { quality: 0.8, backgroundColor: '#09090b' });
         } catch (e) {
