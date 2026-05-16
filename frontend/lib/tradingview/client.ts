@@ -138,12 +138,16 @@ export class TradingViewLiveClient {
     return () => this.listeners.delete(cb);
   }
 
+  private connectCount = 0;
+  private maxConnectAttempts = 5;
+
   connect(): void {
-    if (this.ws) return;
+    if (this.ws || this.connectCount >= this.maxConnectAttempts) return;
     this.shouldReconnect = true;
     this.session = genSession();
     try {
       this.ws = this.wsFactory(TV_WS_URL, { origin: TV_ORIGIN });
+      this.connectCount++;
     } catch (e) {
       this.scheduleReconnect();
       return;
@@ -152,6 +156,7 @@ export class TradingViewLiveClient {
 
     const handleOpen = () => {
       this.connected = true;
+      this.connectCount = 0; // Reset on success
       ws.send(makeMessage("set_auth_token", ["unauthorized_user_token"]));
       ws.send(makeMessage("quote_create_session", [this.session]));
       ws.send(

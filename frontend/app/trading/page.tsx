@@ -16,6 +16,7 @@ export default function TradingPage() {
   const [reasoning, setReasoning] = useState('');
   const [isTrading, setIsTrading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [timeframe, setTimeframe] = useState('1d'); // Nueva temporalidad
   const searchRef = useRef<HTMLDivElement>(null);
 
   const { data: status } = useSWR('/api/portfolio/status', fetcher, { refreshInterval: 5000 });
@@ -209,7 +210,13 @@ export default function TradingPage() {
             </div>
 
             <div className="h-[440px] bg-gradient-to-b from-transparent to-black/20 rounded-2xl p-2 border border-white/[0.02]">
-              <TradingChart ticker={selectedTicker} livePrice={displayPrice} markers={trades || []} />
+              <TradingChart 
+                ticker={selectedTicker} 
+                livePrice={displayPrice} 
+                markers={trades || []} 
+                timeframe={timeframe}
+                onTimeframeChange={setTimeframe}
+              />
             </div>
           </div>
 
@@ -345,16 +352,16 @@ export default function TradingPage() {
 
 function StatCard({ icon, label, value, subtext }: { icon: React.ReactNode, label: string, value: string | number, subtext: string }) {
   return (
-    <div className="bg-zinc-900/40 border border-white/5 p-5 rounded-3xl space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="p-2 bg-white/5 rounded-xl">
+    <div className="bg-zinc-900/40 border border-white/5 p-4 lg:p-5 rounded-3xl space-y-3 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <div className="p-2 bg-white/5 rounded-xl flex-shrink-0">
           {icon}
         </div>
-        <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-tighter">{subtext}</span>
+        <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-tighter truncate">{subtext}</span>
       </div>
-      <div>
-        <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider">{label}</p>
-        <p className="text-2xl font-bold text-white tracking-tight">{value}</p>
+      <div className="min-w-0">
+        <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider truncate">{label}</p>
+        <p className="text-xl lg:text-2xl font-bold text-white tracking-tight truncate">{value}</p>
       </div>
     </div>
   );
