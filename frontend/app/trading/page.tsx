@@ -41,7 +41,7 @@ export default function TradingPage() {
   );
   const displayPrice = liveTick?.price ?? tickerData?.price;
 
-  const openTrades = Array.isArray(trades) ? trades.filter((t: any) => t.estado === 'OPEN') : [];
+  const openTrades = trades?.filter((t: any) => t.estado === 'OPEN') || [];
 
   // Cerrar búsqueda al hacer click fuera
   useEffect(() => {
@@ -53,16 +53,6 @@ export default function TradingPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Si no hay status todavía y está cargando
-  if (!status && !trades) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center space-y-4 bg-[#050505]">
-        <div className="w-10 h-10 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-        <p className="text-zinc-500 font-mono text-[10px] animate-pulse uppercase tracking-[0.2em]">Sincronizando Terminal...</p>
-      </div>
-    );
-  }
 
   const handleTrade = async (side: 'BUY' | 'SELL') => {
     if (!reasoning) {
@@ -186,7 +176,7 @@ export default function TradingPage() {
                 {/* Dropdown de Búsqueda */}
                 {showSearch && searchResults && (
                   <div className="absolute top-full mt-2 left-0 right-0 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl z-[100] max-h-80 overflow-y-auto custom-scrollbar backdrop-blur-xl">
-                    {Array.isArray(searchResults) && searchResults.length > 0 ? searchResults.map((res: any) => (
+                    {searchResults.length > 0 ? searchResults.map((res: any) => (
                       <button
                         key={res.symbol}
                         onClick={() => selectAsset(res.symbol)}
