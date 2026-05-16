@@ -54,81 +54,13 @@ function removeRef(ticker: string): void {
   }
 }
 
-/**
- * Suscribe a precio en vivo para un ticker individual.
- * Devuelve el último tick recibido (o null mientras no hay datos).
- */
 export function useLivePrice(ticker: string | null | undefined): Tick | null {
-  const [tick, setTick] = useState<Tick | null>(null);
-  const tickerRef = useRef(ticker);
-
-  useEffect(() => {
-    tickerRef.current = ticker;
-    if (!ticker) return;
-    const key = ticker.toUpperCase();
-    // Hidrata con último valor cacheado si existe
-    const cached = lastTickByTicker.get(key);
-    if (cached) setTick(cached);
-    addRef(key);
-    let cbs = listenersByTicker.get(key);
-    if (!cbs) {
-      cbs = new Set();
-      listenersByTicker.set(key, cbs);
-    }
-    const cb = (t: Tick) => setTick(t);
-    cbs.add(cb);
-    return () => {
-      cbs!.delete(cb);
-      if (cbs!.size === 0) listenersByTicker.delete(key);
-      removeRef(key);
-    };
-  }, [ticker]);
-
-  return tick;
+  // TradingView WS is currently blocking browser connections (CORS/403).
+  // We return null to force the app to use the HTTP fallback (useSWR).
+  return null;
 }
 
-/**
- * Suscribe varios tickers a la vez. Devuelve mapa { TICKER: Tick }.
- */
 export function useLivePrices(tickers: string[]): Record<string, Tick> {
-  const [ticks, setTicks] = useState<Record<string, Tick>>({});
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const keys = tickers.map((t) => t.toUpperCase()).filter(Boolean);
-    if (!keys.length) return;
-    const updates: Record<string, Tick> = {};
-    for (const key of keys) {
-      const cached = lastTickByTicker.get(key);
-      if (cached) updates[key] = cached;
-    }
-    if (Object.keys(updates).length) {
-      setTicks((prev) => ({ ...prev, ...updates }));
-    }
-    const callbacks: { key: string; cb: (t: Tick) => void }[] = [];
-    for (const key of keys) {
-      addRef(key);
-      let cbs = listenersByTicker.get(key);
-      if (!cbs) {
-        cbs = new Set();
-        listenersByTicker.set(key, cbs);
-      }
-      const cb = (t: Tick) => setTicks((prev) => ({ ...prev, [key]: t }));
-      cbs.add(cb);
-      callbacks.push({ key, cb });
-    }
-    return () => {
-      for (const { key, cb } of callbacks) {
-        const cbs = listenersByTicker.get(key);
-        if (cbs) {
-          cbs.delete(cb);
-          if (cbs.size === 0) listenersByTicker.delete(key);
-        }
-        removeRef(key);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tickers.join(",")]);
-
-  return ticks;
+  // Return empty record to force HTTP fallback
+  return {};
 }
