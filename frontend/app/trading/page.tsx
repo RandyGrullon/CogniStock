@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { LineChart, ArrowUpCircle, ArrowDownCircle, Wallet, Activity, History, Trash2, Loader2, Search, X, Brain, CheckCircle2, XCircle } from 'lucide-react';
+import { LineChart, ArrowUpCircle, ArrowDownCircle, Wallet, Activity, History, Trash2, Loader2, Search, X, Brain, CheckCircle2, XCircle, Zap } from 'lucide-react';
 import TradingChart from '@/components/TradingChart';
 import useSWR, { useSWRConfig } from 'swr';
 import { useLivePrice, useLivePrices } from '@/hooks/useLivePrice';
