@@ -8,12 +8,13 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const { ticker } = await req.json();
+    const body = await req.json();
+    const { ticker, image } = body;
     if (!ticker) return NextResponse.json({ error: "Ticker requerido" }, { status: 400 });
 
     // 1. Análisis relámpago
-    console.log(`[AI-VISION] Iniciando análisis para ${ticker}`);
-    const analysis = await analyzeTicker(ticker);
+    console.log(`[AI-VISION] Iniciando análisis para ${ticker} (Con imagen: ${!!image})`);
+    const analysis = await analyzeTicker(ticker, image);
     console.log(`[AI-VISION] Análisis completado. Recomendación: ${analysis.recomendacion}`);
     
     // 2. Ejecución inmediata si hay señal clara (> 60% confianza para este modo rápido)

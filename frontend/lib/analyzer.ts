@@ -14,6 +14,7 @@ import {
   getPriceHistory,
   calculateIndicators,
   interpretIndicators,
+  getTickerNews,
 } from "./marketData";
 import { analyzeStock, AnalysisResult } from "./groq";
 import { getRelevantMemory } from "./lessons";
@@ -27,19 +28,21 @@ export type FullAnalysis = AnalysisResult & {
   datos_fundamentales: any;
 };
 
-export async function analyzeTicker(ticker: string): Promise<FullAnalysis> {
+export async function analyzeTicker(ticker: string, imageBase64?: string): Promise<FullAnalysis> {
   const fundamentals = await getTickerData(ticker);
   const history = await getPriceHistory(ticker, "3mo", "1d");
   const indicators = calculateIndicators(history);
   const interpretation = interpretIndicators(indicators);
   const memory = await getRelevantMemory(ticker);
+  const news = await getTickerNews(ticker);
 
   const result = await analyzeStock({
     ticker,
     technical: { ...indicators, ...interpretation },
     fundamentals,
-    news: [],
+    news,
     memory,
+    image: imageBase64,
   });
 
   const full: FullAnalysis = {

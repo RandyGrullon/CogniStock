@@ -30,7 +30,7 @@ export async function groqChat(
 
 /** Llamada de chat que devuelve JSON parseado (response_format json_object). */
 export async function groqJson<T = any>(
-  messages: { role: "system" | "user" | "assistant"; content: string }[],
+  messages: any[],
   opts: { temperature?: number; model?: string } = {}
 ): Promise<T> {
   const completion = await client().chat.completions.create({
@@ -65,6 +65,7 @@ export async function analyzeStock(input: {
   fundamentals: Record<string, any>;
   news: any[];
   memory: string;
+  image?: string;
 }): Promise<AnalysisResult> {
   const prompt = `
 Eres un analista financiero experto de élite. Tu objetivo es aprender de experiencias pasadas y mejorar tus predicciones.
@@ -103,14 +104,25 @@ Responde ÚNICAMENTE en JSON con esta estructura:
   "lecciones_aplicadas": ["título de la lección que usaste para decidir"]
 }
 `;
+  let userContent: any = prompt;
+  let modelOverride: string | undefined = undefined;
+  
+  if (input.image) {
+    userContent = [
+      { type: "text", text: prompt },
+      { type: "image_url", image_url: { url: input.image } }
+    ];
+    modelOverride = "llama-3.2-90b-vision-preview";
+  }
+
   return groqJson<AnalysisResult>([
     {
       role: "system",
       content:
         "Eres un sistema de análisis financiero con capacidad de aprendizaje continuo. Tu prioridad es la gestión de riesgo y la mejora constante basada en datos históricos.",
     },
-    { role: "user", content: prompt },
-  ]);
+    { role: "user", content: userContent },
+  ], { model: modelOverride });
 }
 
 export type LessonResult = {

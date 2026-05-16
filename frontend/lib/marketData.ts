@@ -27,7 +27,7 @@ export type TickerData = {
   eps?: number | null;
   beta?: number | null;
   dividend_yield?: number | null;
-  source: "tradingview" | "yahoo";
+  source: "tradingview" | "yahoo" | "error";
 };
 
 const YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart";
@@ -53,7 +53,10 @@ async function fetchJson(url: string, init?: RequestInit): Promise<any> {
     },
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`fetch ${url} -> ${res.status}`);
+  if (!res.ok) {
+    console.warn(`[marketData] fetch ${url} -> ${res.status}`);
+    return null;
+  }
   return await res.json();
 }
 
@@ -110,8 +113,29 @@ export async function getTickerData(ticker: string): Promise<TickerData> {
   try {
     return await yahooQuote(ticker);
   } catch {
-    const price = await yahooFastPrice(ticker);
-    return { price, source: "yahoo" };
+    try {
+      const price = await yahooFastPrice(ticker);
+      return { price, source: "yahoo" };
+    } catch {
+      console.warn(`[marketData] All price fallbacks failed for ${ticker}`);
+      return { price: 0, source: "error" };
+    }
+  }
+}
+
+export async function getTickerNews(ticker: string): Promise<any[]> {
+  try {
+    const data = await fetchJson(`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&newsCount=5`);
+    if (!data?.news) return [];
+    return data.news.map((n: any) => ({
+      title: n.title,
+      publisher: n.publisher,
+      link: n.link,
+      time: n.providerPublishTime
+    }));
+  } catch (e) {
+    console.warn("[marketData] Error fetching news:", e);
+    return [];
   }
 }
 

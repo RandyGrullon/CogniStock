@@ -5,6 +5,7 @@ import { LineChart, ArrowUpCircle, ArrowDownCircle, Wallet, Activity, History, T
 import TradingChart from '@/components/TradingChart';
 import useSWR, { useSWRConfig } from 'swr';
 import { useLivePrice, useLivePrices } from '@/hooks/useLivePrice';
+import { toJpeg } from 'html-to-image';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -29,14 +30,26 @@ export default function TradingPage() {
     isAnalyzing: false
   });
 
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+
   const handleAiVision = async () => {
     setAiState(prev => ({ ...prev, isAnalyzing: true }));
     setMessage({ text: '', type: '' });
     try {
+      let imageBase64 = undefined;
+      if (chartContainerRef.current) {
+        try {
+          // Capturamos el gráfico antes de mandarlo
+          imageBase64 = await toJpeg(chartContainerRef.current, { quality: 0.8, backgroundColor: '#09090b' });
+        } catch (e) {
+          console.warn("No se pudo capturar el gráfico", e);
+        }
+      }
+
       const response = await fetch('/api/portfolio/ai-vision', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker: selectedTicker })
+        body: JSON.stringify({ ticker: selectedTicker, image: imageBase64 })
       });
       const data = await response.json();
       if (response.ok) {
@@ -269,7 +282,7 @@ export default function TradingPage() {
               </div>
             </div>
 
-            <div className="h-[440px] bg-gradient-to-b from-transparent to-black/20 rounded-2xl p-2 border border-white/[0.02]">
+            <div ref={chartContainerRef} className="h-[440px] bg-gradient-to-b from-transparent to-black/20 rounded-2xl p-2 border border-white/[0.02]">
               <TradingChart 
                 ticker={selectedTicker} 
                 livePrice={displayPrice} 
