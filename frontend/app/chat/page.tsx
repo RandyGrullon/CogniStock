@@ -172,7 +172,7 @@ export default function AIChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8.5rem)] max-w-6xl mx-auto">
+    <div className="flex flex-col h-full min-h-0 max-w-6xl mx-auto">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 px-4">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <div className="flex items-center gap-3">
