@@ -318,7 +318,7 @@ export default function DecisionLogsPage() {
     <div className="space-y-8">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
             Registros de Decisión
           </h1>
           <p className="text-zinc-500 font-medium italic">
@@ -327,14 +327,14 @@ export default function DecisionLogsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
             <input
               type="text"
               placeholder="Buscar por ticker, texto..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl py-2 px-10 text-xs focus:outline-none focus:border-blue-500/50 transition-all w-72"
+              className="bg-white/5 border border-white/10 rounded-xl py-2 px-10 text-xs focus:outline-none focus:border-blue-500/50 transition-all w-full sm:w-72"
             />
           </div>
         </div>

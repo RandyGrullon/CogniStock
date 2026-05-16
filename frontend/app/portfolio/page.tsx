@@ -34,7 +34,7 @@ export default function PortfolioPage() {
     <div className="space-y-10 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
             Gestión de Activos
           </h1>
           <p className="text-zinc-500 font-medium">Control total de tu capital y rendimiento en tiempo real</p>
@@ -141,8 +141,8 @@ export default function PortfolioPage() {
                 </div>
             </div>
 
-            <div className="glass-card rounded-3xl border border-white/5 overflow-hidden">
-                <table className="w-full text-left">
+            <div className="glass-card rounded-3xl border border-white/5 overflow-x-auto">
+                <table className="w-full min-w-[700px] text-left">
                     <thead className="bg-white/5 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
                         <tr>
                             <th className="px-6 py-4">Activo</th>

@@ -56,7 +56,7 @@ export default function SignalsPage() {
     <div className="space-y-10">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
             Señales AI Reales
           </h1>
           <p className="text-zinc-500 font-medium">
@@ -142,15 +142,15 @@ export default function SignalsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-12 px-8 py-4 bg-white/5 rounded-2xl border border-white/5">
-                    <div className="text-center">
+                  <div className="flex flex-wrap items-center gap-4 sm:gap-8 px-4 sm:px-8 py-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="text-center min-w-[120px]">
                       <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter mb-1">
                         Confianza
                       </p>
                       <p className="text-xl font-mono font-black text-blue-500">{sig.confianza}%</p>
                     </div>
-                    <div className="w-[1px] h-8 bg-white/10" />
-                    <div className="text-center">
+                    <div className="hidden sm:block w-[1px] h-8 bg-white/10" />
+                    <div className="text-center min-w-[120px]">
                       <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter mb-1">
                         Riesgo
                       </p>

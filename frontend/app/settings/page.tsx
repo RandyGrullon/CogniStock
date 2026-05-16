@@ -4,7 +4,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-4xl font-black text-white uppercase tracking-tighter">
+        <h1 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tighter">
           Configuración
         </h1>
         <p className="text-zinc-500 mt-2 max-w-2xl">

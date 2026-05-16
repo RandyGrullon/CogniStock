@@ -172,7 +172,7 @@ export default function AIChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] max-w-6xl mx-auto">
+    <div className="flex flex-col h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8.5rem)] max-w-6xl mx-auto">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 px-4">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <div className="flex items-center gap-3">
@@ -180,7 +180,7 @@ export default function AIChatPage() {
               <Sparkles className="text-blue-400 w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-blue-100 to-zinc-500 bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-blue-100 to-zinc-500 bg-clip-text text-transparent">
                 CogniChat Neural
               </h1>
               <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.3em] mt-0.5">
@@ -205,12 +205,12 @@ export default function AIChatPage() {
         </motion.div>
       </header>
 
-      <div className="flex-1 glass-card rounded-[3.5rem] border border-white/5 flex flex-col overflow-hidden shadow-2xl relative">
+      <div className="flex-1 glass-card rounded-[2rem] sm:rounded-[3rem] border border-white/5 flex flex-col overflow-hidden shadow-2xl relative">
         <div className="absolute inset-0 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
 
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto p-6 md:p-12 space-y-10 scroll-smooth custom-scrollbar relative z-10"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 space-y-8 sm:space-y-10 scroll-smooth custom-scrollbar relative z-10"
         >
           <AnimatePresence mode="popLayout">
             {messages.length === 0 ? (
@@ -267,7 +267,7 @@ export default function AIChatPage() {
           </AnimatePresence>
         </div>
 
-        <div className="p-8 bg-zinc-950/90 border-t border-white/5 backdrop-blur-2xl relative z-20">
+        <div className="p-4 sm:p-6 md:p-8 bg-zinc-950/90 border-t border-white/5 backdrop-blur-2xl relative z-20">
           <form onSubmit={sendMessage} className="relative max-w-4xl mx-auto">
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-[2rem] opacity-20 group-focus-within:opacity-40 transition duration-500 blur-sm" />

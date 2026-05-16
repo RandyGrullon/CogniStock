@@ -37,7 +37,7 @@ export default function MarketPage() {
     <main className="flex-1 p-6 space-y-8 overflow-y-auto bg-[#050505] text-zinc-300">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent flex items-center gap-3">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent flex items-center gap-3">
             <Globe className="text-blue-500" size={36} />
             Market Hub
           </h1>
@@ -238,7 +238,7 @@ export default function MarketPage() {
           </div>
 
           {/* Screener Movers (Gainers / Losers / Active) */}
-          <div className="bg-zinc-900/40 border border-white/5 rounded-3xl overflow-hidden sticky top-6">
+          <div className="bg-zinc-900/40 border border-white/5 rounded-3xl overflow-hidden lg:sticky lg:top-6">
             <div className="flex items-center w-full border-b border-white/5">
               <button onClick={() => setMoverTab('gainers')} className={`flex-1 p-4 text-xs font-bold uppercase tracking-widest ${moverTab === 'gainers' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-white transition-colors'}`}>Gainers</button>
               <button onClick={() => setMoverTab('losers')} className={`flex-1 p-4 text-xs font-bold uppercase tracking-widest ${moverTab === 'losers' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-white transition-colors'}`}>Losers</button>
