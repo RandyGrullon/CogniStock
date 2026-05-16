@@ -15,6 +15,7 @@ import {
   calculateIndicators,
   interpretIndicators,
   getTickerNews,
+  getGlobalMarketOverview,
 } from "./marketData";
 import { analyzeStock, AnalysisResult } from "./groq";
 import { getRelevantMemory } from "./lessons";
@@ -35,13 +36,14 @@ export async function analyzeTicker(ticker: string, imageBase64?: string): Promi
   const interpretation = interpretIndicators(indicators);
   const memory = await getRelevantMemory(ticker);
   const news = await getTickerNews(ticker);
+  const globalMarket = await getGlobalMarketOverview();
 
   const result = await analyzeStock({
     ticker,
     technical: { ...indicators, ...interpretation },
     fundamentals,
     news,
-    memory,
+    memory: `${memory}\n\n=== GLOBAL MARKET CONTEXT ===\n${globalMarket}`,
     image: imageBase64,
   });
 

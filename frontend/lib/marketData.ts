@@ -139,6 +139,26 @@ export async function getTickerNews(ticker: string): Promise<any[]> {
   }
 }
 
+export async function getGlobalMarketOverview(): Promise<string> {
+  try {
+    const indices = ["^GSPC", "^IXIC", "^DJI", "^VIX"];
+    const quotes = await Promise.all(indices.map(async sym => {
+      try {
+        const mapped = mapToYahoo(sym);
+        const data = await fetchJson(`${YAHOO_QUOTE}?symbols=${encodeURIComponent(mapped)}`);
+        const q = data?.quoteResponse?.result?.[0] ?? {};
+        const chg = q.regularMarketChangePercent ?? 0;
+        return `${sym}: $${q.regularMarketPrice ?? 0} (${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%)`;
+      } catch {
+        return `${sym}: N/A`;
+      }
+    }));
+    return `Market Snapshot: ${quotes.join(", ")}`;
+  } catch (e) {
+    return "Market Snapshot: Unavailable";
+  }
+}
+
 export async function getPriceHistory(
   ticker: string,
   range: string = "3mo",

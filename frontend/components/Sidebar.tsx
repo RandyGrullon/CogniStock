@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { 
   LayoutDashboard, Briefcase, Zap, GraduationCap, 
   Settings, Terminal, MessageSquare, LineChart,
-  ChevronLeft, ChevronRight, Menu, Network
+  ChevronLeft, ChevronRight, Menu, Network, Globe
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import NeuralArchitectureModal from './NeuralArchitectureModal';
@@ -50,8 +50,9 @@ export default function Sidebar() {
           </button>
         </div>
 
-        <nav className="flex-1 w-full space-y-2">
+        <nav className="flex-1 w-full space-y-2 mt-4">
           <NavItem href="/" icon={<LayoutDashboard size={20} />} label="Dashboard" active={pathname === "/"} isCollapsed={isCollapsed} />
+          <NavItem href="/market" icon={<Globe size={20} />} label="Mercados" active={pathname === "/market"} isCollapsed={isCollapsed} />
           <NavItem href="/trading" icon={<LineChart size={20} />} label="Trading" active={pathname === "/trading"} isCollapsed={isCollapsed} />
           <NavItem href="/portfolio" icon={<Briefcase size={20} />} label="Portafolio" active={pathname === "/portfolio"} isCollapsed={isCollapsed} />
           <NavItem href="/signals" icon={<Zap size={20} />} label="Señales AI" active={pathname === "/signals"} isCollapsed={isCollapsed} />
@@ -128,7 +129,7 @@ function NavItem({ href, icon, label, active = false, isCollapsed = false }: { h
       </AnimatePresence>
 
       {isCollapsed && (
-        <div className="absolute left-14 px-2 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] text-white opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100] shadow-xl">
+        <div className="absolute left-14 px-3 py-1.5 bg-zinc-800 border border-white/10 rounded-lg text-xs font-bold text-white opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100] shadow-2xl flex items-center gap-2">
           {label}
         </div>
       )}
