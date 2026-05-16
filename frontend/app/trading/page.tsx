@@ -30,6 +30,14 @@ export default function TradingPage() {
     isAnalyzing: false
   });
 
+  const [nextScanIn, setNextScanIn] = useState(30 * 60);
+  const previousPriceRef = useRef<number | null>(null);
+  const isAnalyzingRef = useRef(false);
+
+  useEffect(() => {
+    isAnalyzingRef.current = aiState.isAnalyzing;
+  }, [aiState.isAnalyzing]);
+
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const handleAiVision = async () => {
@@ -81,6 +89,22 @@ export default function TradingPage() {
   const [timeframe, setTimeframe] = useState('1d'); // Nueva temporalidad
   const searchRef = useRef<HTMLDivElement>(null);
 
+  // Auto-Trading Loop (30 minutes)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNextScanIn((prev) => {
+        if (prev <= 1) {
+          if (!isAnalyzingRef.current) {
+            handleAiVision();
+          }
+          return 30 * 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [selectedTicker]);
+
   const { data: status } = useSWR('/api/portfolio/status', fetcher, { refreshInterval: 5000 });
   const { data: trades } = useSWR('/api/portfolio/trades', fetcher, { refreshInterval: 5000 });
 
@@ -103,6 +127,24 @@ export default function TradingPage() {
     { refreshInterval: 1500, revalidateOnFocus: true }
   );
   const displayPrice = liveTick?.price ?? tickerData?.price;
+
+  // Volatility Trigger (0.25% sudden change)
+  useEffect(() => {
+    if (displayPrice && previousPriceRef.current) {
+      const prev = previousPriceRef.current;
+      const changePercent = Math.abs(displayPrice - prev) / prev;
+      if (changePercent > 0.0025) {
+        if (!isAnalyzingRef.current) {
+          setMessage({ text: 'ALERTA VOLATILIDAD: Escaneo automático de emergencia...', type: 'success' });
+          setNextScanIn(30 * 60); // Reset timer
+          handleAiVision();
+        }
+      }
+    }
+    if (displayPrice) {
+      previousPriceRef.current = displayPrice;
+    }
+  }, [displayPrice]);
 
   const openTrades = trades?.filter((t: any) => t.estado === 'OPEN') || [];
 
@@ -387,20 +429,29 @@ export default function TradingPage() {
                   </p>
                 </div>
 
-                <button 
-                  onClick={handleAiVision}
-                  disabled={aiState.isAnalyzing}
-                  className="w-full mt-6 flex items-center justify-center space-x-2 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-blue-500/20"
-                >
-                  {aiState.isAnalyzing ? (
-                    <Loader2 className="animate-spin" size={16} />
-                  ) : (
-                    <>
-                      <Zap size={14} className="fill-current" />
-                      <span>Escanear Gráfico & Operar</span>
-                    </>
-                  )}
-                </button>
+                <div className="w-full mt-6 flex flex-col items-center justify-center p-3 bg-blue-600/10 border border-blue-500/20 rounded-xl">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                    </div>
+                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">
+                      SISTEMA ARMADO Y AUTÓNOMO
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between w-full px-2 mt-2">
+                    <span className="text-[9px] text-zinc-500 uppercase font-mono">Próximo Escaneo en:</span>
+                    <span className="text-xs font-mono font-bold text-white">
+                      {Math.floor(nextScanIn / 60).toString().padStart(2, '0')}:{(nextScanIn % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                  <div className="w-full bg-black/40 h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div 
+                      className="bg-blue-500 h-full transition-all duration-1000" 
+                      style={{ width: `${((30 * 60 - nextScanIn) / (30 * 60)) * 100}%` }}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

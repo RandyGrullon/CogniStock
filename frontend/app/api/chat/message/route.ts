@@ -29,7 +29,7 @@ SISTEMA COGNISTOCK - ESTADO ACTUAL:
 Eres 'CogniStock AI', el núcleo de inteligencia de esta terminal de trading.
 Tu tono es ejecutivo, analítico y directo. Responde basado en datos REALES.`;
 
-    const formatted = [
+    const formatted: any[] = [
       { role: "system" as const, content: systemPrompt },
       ...((history ?? []) as any[]).map((m) => ({
         role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
@@ -38,7 +38,83 @@ Tu tono es ejecutivo, analítico y directo. Responde basado en datos REALES.`;
       { role: "user" as const, content: String(message ?? "") },
     ];
 
-    const response = await groqChat(formatted, { temperature: 0.7, model: getGroqModel() });
+    const { executeTrade } = await import("@/lib/portfolio");
+    const { default: Groq } = await import("groq-sdk");
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "execute_trade",
+          description: "Abre una posición de BUY (Largo) o SELL (Corto) en el mercado usando el saldo disponible.",
+          parameters: {
+            type: "object",
+            properties: {
+              ticker: { type: "string", description: "Símbolo del activo, ej. AAPL, NVDA" },
+              side: { type: "string", enum: ["BUY", "SELL"], description: "Dirección de la operación" },
+              amount: { type: "number", description: "Cantidad de acciones o lotes a comprar" }
+            },
+            required: ["ticker", "side", "amount"]
+          }
+        }
+      }
+    ];
+
+    let responseStr = "";
+    
+    // First call
+    const completion1 = await groq.chat.completions.create({
+      messages: formatted,
+      model: getGroqModel(),
+      temperature: 0.7,
+      tools: tools as any,
+      tool_choice: "auto",
+    });
+
+    const responseMsg = completion1.choices[0]?.message;
+
+    if (responseMsg?.tool_calls && responseMsg.tool_calls.length > 0) {
+      formatted.push(responseMsg);
+      for (const toolCall of responseMsg.tool_calls) {
+        if (toolCall.function.name === "execute_trade") {
+          const args = JSON.parse(toolCall.function.arguments);
+          try {
+            const res = await executeTrade({
+              ticker: args.ticker.toUpperCase(),
+              side: args.side,
+              amount: args.amount,
+              reasoning: `[CHAT AUTÓNOMO] Solicitado por el usuario vía chat neural.`
+            });
+            formatted.push({
+              tool_call_id: toolCall.id,
+              role: "tool",
+              name: "execute_trade",
+              content: JSON.stringify(res)
+            });
+          } catch (e: any) {
+            formatted.push({
+              tool_call_id: toolCall.id,
+              role: "tool",
+              name: "execute_trade",
+              content: JSON.stringify({ error: e.message })
+            });
+          }
+        }
+      }
+      
+      // Second call to get final text
+      const completion2 = await groq.chat.completions.create({
+        messages: formatted,
+        model: getGroqModel(),
+        temperature: 0.7,
+      });
+      responseStr = completion2.choices[0]?.message?.content || "Operación ejecutada, pero no pude generar una respuesta.";
+    } else {
+      responseStr = responseMsg?.content || "Sin respuesta del núcleo.";
+    }
+
+    const response = responseStr;
 
     // Persistir mensajes (user + assistant) y upsert de la sesión (best-effort)
     if (session_id) {

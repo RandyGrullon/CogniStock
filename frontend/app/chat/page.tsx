@@ -44,6 +44,21 @@ export default function AIChatPage() {
 
   useEffect(() => {
     setSessionId(uuidv4());
+    
+    // Cargar historial perpetuo
+    fetch("/api/chat/history")
+      .then(res => res.json())
+      .then(data => {
+        if (data.messages && data.messages.length > 0) {
+          const loaded = data.messages.map((m: any) => ({
+            role: m.role,
+            content: m.content,
+            timestamp: new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          }));
+          setMessages(loaded);
+        }
+      })
+      .catch(err => console.error("Error loading history:", err));
   }, []);
 
   useEffect(() => {
