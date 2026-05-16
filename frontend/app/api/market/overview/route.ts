@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTickerData, getPriceHistory, getTickerNews, getMarketMovers } from "@/lib/marketData";
+import { getTickerData, getPriceHistory, getTickerNews, getMarketMovers, getBatchQuotes } from "@/lib/marketData";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
