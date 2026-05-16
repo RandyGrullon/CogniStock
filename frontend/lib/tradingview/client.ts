@@ -139,17 +139,17 @@ export class TradingViewLiveClient {
   }
 
   private connectCount = 0;
-  private maxConnectAttempts = 5;
+  private maxConnectAttempts = 3; // Reducido para ser menos intrusivo
+  private gaveUp = false;
 
   connect(): void {
-    if (this.ws || this.connectCount >= this.maxConnectAttempts) return;
+    if (this.ws || this.gaveUp) return;
     this.shouldReconnect = true;
     this.session = genSession();
-    try {
-      this.ws = this.wsFactory(TV_WS_URL, { origin: TV_ORIGIN });
-      this.connectCount++;
-    } catch (e) {
-      this.scheduleReconnect();
+    
+    if (this.connectCount >= this.maxConnectAttempts) {
+      this.gaveUp = true;
+      console.warn("TV WS: Maximo de intentos alcanzado. Usando fallback HTTP.");
       return;
     }
     const ws = this.ws!;

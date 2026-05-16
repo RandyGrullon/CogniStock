@@ -12,19 +12,23 @@ export async function POST(req: Request) {
     if (!ticker) return NextResponse.json({ error: "Ticker requerido" }, { status: 400 });
 
     // 1. Análisis relámpago
+    console.log(`[AI-VISION] Iniciando análisis para ${ticker}`);
     const analysis = await analyzeTicker(ticker);
+    console.log(`[AI-VISION] Análisis completado. Recomendación: ${analysis.recomendacion}`);
     
     // 2. Ejecución inmediata si hay señal clara (> 60% confianza para este modo rápido)
     let actionResult = null;
     const db = getServerSupabase();
     
-    // Buscar posición actual
-    const { data: existing } = await db
+    // Buscar posición actual de forma segura
+    const { data: positions } = await db
       .from("trades")
       .select("*")
       .eq("ticker", ticker)
       .eq("estado", "OPEN")
-      .single();
+      .limit(1);
+
+    const existing = positions?.[0];
 
     if (analysis.recomendacion === "BUY" && analysis.confianza >= 60 && !existing) {
       actionResult = await executeTrade({
@@ -49,6 +53,10 @@ export async function POST(req: Request) {
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("AI-VISION FATAL:", error);
+    return NextResponse.json({ 
+      error: error.message,
+      detail: "Error interno en el motor de visión neural. Revisa los logs de Vercel."
+    }, { status: 500 });
   }
 }
