@@ -283,9 +283,9 @@ export default function Dashboard() {
                         <ShieldCheck size={24} className="text-emerald-500" />
                         Active Exposures
                     </h2>
-                    <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <div className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] flex items-center gap-2">
                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Portfolio
-                    </span>
+                    </div>
                 </div>
                 <div className="bg-[#0a0a0a] border border-white/5 rounded-[2.5rem] p-4 min-h-[300px] shadow-2xl flex flex-col justify-between overflow-hidden relative">
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.01] to-transparent pointer-events-none" />

@@ -178,9 +178,9 @@ export default function PortfolioPage() {
                     OPERATIONAL EXPOSURES
                 </h2>
                 <div className="flex items-center gap-3">
-                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                  <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Streaming
-                  </span>
+                  </div>
                   <button className="p-2 bg-white/5 border border-white/10 rounded-xl text-zinc-400 hover:text-white transition-colors"><Filter size={14}/></button>
                 </div>
             </div>

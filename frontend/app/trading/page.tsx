@@ -326,9 +326,9 @@ export default function TradingPage() {
                    <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 border border-blue-500/20 shadow-inner shrink-0"><Scan size={24} /></div>
                    <div>
                       <h3 className="text-lg md:text-xl font-black text-white uppercase tracking-tight leading-none">Operational Ledger</h3>
-                      <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mt-2 flex items-center gap-2">
+                      <div className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mt-2 flex items-center gap-2">
                         <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" /> Live Portfolio Synchronization
-                      </p>
+                      </div>
                    </div>
                 </div>
                 
@@ -393,16 +393,13 @@ export default function TradingPage() {
                          <td className="px-8 py-6 text-center">
                             <div className="space-y-1">
                                <p className={`text-xs font-mono font-black ${isPos ? 'text-emerald-400' : 'text-red-400'}`}>${t.precio_actual?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                               <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center justify-center gap-1">
+                               <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center justify-center gap-1">
                                   <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" /> Streaming
-                               </p>
+                               </div>
                             </div>
                          </td>
                          <td className="px-8 py-6 text-center">
-                            <div className="flex flex-col items-center">
-                               <Clock size={12} className="text-zinc-700 mb-1" />
-                               <p className="text-[10px] font-mono font-bold text-zinc-400">{diffHours}h {diffMins}m</p>
-                            </div>
+                            <DurationBadge entryDate={t.fecha_entrada} />
                          </td>
                          <td className="px-8 py-6 text-right">
                             <div className={`text-xl font-mono font-black flex items-center justify-end ${isPos ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -591,6 +588,30 @@ export default function TradingPage() {
          <div className="absolute bottom-1/4 -left-20 w-[500px] h-[500px] bg-purple-600/10 blur-[150px] rounded-full" />
       </div>
     </main>
+  );
+}
+
+function DurationBadge({ entryDate }: { entryDate: string }) {
+  const [duration, setDuration] = useState("");
+
+  useEffect(() => {
+    const update = () => {
+      const openDate = new Date(entryDate);
+      const diffMs = Date.now() - openDate.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor((diffMs / (1000 * 60)) % 60);
+      setDuration(`${diffHours}h ${diffMins}m`);
+    };
+    update();
+    const timer = setInterval(update, 60000);
+    return () => clearInterval(timer);
+  }, [entryDate]);
+
+  return (
+    <div className="flex flex-col items-center">
+       <Clock size={12} className="text-zinc-700 mb-1" />
+       <p className="text-[10px] font-mono font-bold text-zinc-400">{duration || "---"}</p>
+    </div>
   );
 }
 

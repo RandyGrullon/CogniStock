@@ -24,6 +24,9 @@ export interface TradingChartProps {
 }
 
 export default function TradingChart({ ticker, markers = [], livePrice, timeframe = '1d', onTimeframeChange }: TradingChartProps) {
+  const [mounted, setMounted] = React.useState(false);
+  useEffect(() => setMounted(true), []);
+
   const { data: chartData, error, isLoading } = useSWR(
     `/api/analysis/chart/${ticker}?range=${timeframe === '1d' ? '3mo' : timeframe === '1h' ? '1mo' : '1d'}&interval=${timeframe}`, 
     fetcher, 
@@ -42,18 +45,26 @@ export default function TradingChart({ ticker, markers = [], livePrice, timefram
   // Formatear datos para Recharts
   const formattedData = useMemo(() => {
     if (!chartData || !Array.isArray(chartData)) return [];
-    return chartData.map(d => ({
-      ...d,
-      // Convertir time (Unix timestamp) a string legible si es necesario, 
-      // o dejarlo para que el XAxis lo maneje.
-      date: typeof d.time === 'number' ? new Date(d.time * 1000).toLocaleDateString() : d.time,
-      price: d.close // Usamos el cierre para el gráfico de área
-    }));
-  }, [chartData]);
+    return chartData.map(d => {
+      const dateObj = typeof d.time === 'number' ? new Date(d.time * 1000) : new Date(d.time);
+      // Si el intervalo es menor a un día, mostramos hora
+      const dateLabel = (timeframe === '15m' || timeframe === '1h') 
+        ? dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : dateObj.toLocaleDateString();
+      
+      return {
+        ...d,
+        date: dateLabel,
+        price: d.close
+      };
+    });
+  }, [chartData, timeframe]);
 
-  // Filtrar marcadores relevantes para este ticker
+  // Filtrar marcadores relevantes para este ticker (case-insensitive)
   const relevantMarkers = useMemo(() => {
-    return markers.filter(m => m.ticker === ticker || !m.ticker);
+    return markers.filter(m => 
+      m.ticker?.toUpperCase() === ticker?.toUpperCase() || !m.ticker
+    );
   }, [markers, ticker]);
 
   if (error) {
@@ -70,6 +81,14 @@ export default function TradingChart({ ticker, markers = [], livePrice, timefram
       <div className="w-full h-[400px] flex flex-col items-center justify-center bg-zinc-900/20 rounded-3xl border border-white/5 space-y-4">
         <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
         <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Sincronizando {ticker}...</p>
+      </div>
+    );
+  }
+
+  if (!mounted) {
+    return (
+      <div className="w-full h-[400px] bg-black/40 p-4 rounded-3xl border border-white/5 flex items-center justify-center">
+         <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -151,27 +170,105 @@ export default function TradingChart({ ticker, markers = [], livePrice, timefram
 
           {/* Marcadores de trades y análisis */}
           {relevantMarkers.map((m, i) => {
-            const isTrade = !!m.fecha_entrada;
-            const dateStr = isTrade ? new Date(m.fecha_entrada).toLocaleDateString() : new Date(m.fecha).toLocaleDateString();
-            const yValue = isTrade ? m.precio_entrada : (formattedData.find(d => d.date === dateStr)?.price);
+            const isTrade = !!m.fecha_entrada && m.estado === 'OPEN';
+            const isAnalysis = !!m.recomendacion && !isTrade;
+            
+            // Extraer niveles técnicos del trade o del análisis anidado
+            const entryPrice = isTrade ? m.precio_entrada : null;
+            const targetPrice = isTrade ? (m.precio_objetivo || m.analisis_tecnico?.precio_objetivo) : (isAnalysis ? m.precio_objetivo : null);
+            const stopPrice = isTrade ? (m.stop_loss || m.analisis_tecnico?.stop_loss) : (isAnalysis ? m.stop_loss : null);
 
-            if (!yValue) return null;
+            // Determinar etiqueta para el eje X compatible con formattedData
+            let entryX: string | null = null;
+            if (m.fecha_entrada || m.fecha) {
+              const dObj = new Date(m.fecha_entrada || m.fecha);
+              entryX = (timeframe === '15m' || timeframe === '1h') 
+                ? dObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : dObj.toLocaleDateString();
+            }
 
             return (
-              <ReferenceLine 
-                key={`marker-${i}`}
-                y={yValue} 
-                stroke={isTrade || m.recomendacion === 'BUY' ? "#10b981" : "#ef4444"} 
-                strokeWidth={1}
-                strokeDasharray="3 3"
-                label={{ 
-                  position: 'insideBottomLeft', 
-                  value: isTrade ? `IA ${m.tipo}: $${yValue}` : `IA ${m.recomendacion}`, 
-                  fill: isTrade || m.recomendacion === 'BUY' ? "#10b981" : "#ef4444", 
-                  fontSize: 8,
-                  fontWeight: 'bold'
-                }} 
-              />
+              <React.Fragment key={`marker-group-${i}`}>
+                {/* Línea Vertical de Tiempo (Entrada/Análisis) */}
+                {entryX && formattedData.some(d => d.date === entryX) && (
+                   <ReferenceLine 
+                    x={entryX} 
+                    stroke="rgba(255,255,255,0.15)"
+                    strokeDasharray="3 3"
+                   />
+                )}
+
+                {/* Línea de Entrada (Trade) */}
+                {entryPrice && (
+                  <ReferenceLine 
+                    y={entryPrice} 
+                    stroke={m.tipo === 'BUY' ? "#10b981" : "#ef4444"} 
+                    strokeWidth={2}
+                    strokeDasharray="10 5"
+                    label={{ 
+                      position: 'insideLeft', 
+                      value: `${m.tipo} AT $${entryPrice.toLocaleString()}`, 
+                      fill: m.tipo === 'BUY' ? "#10b981" : "#ef4444", 
+                      fontSize: 10,
+                      fontWeight: 'black',
+                      className: "drop-shadow-lg"
+                    }} 
+                  />
+                )}
+
+                {/* Línea de Take Profit */}
+                {targetPrice && (
+                  <ReferenceLine 
+                    y={targetPrice} 
+                    stroke="#10b981" 
+                    strokeWidth={1}
+                    strokeDasharray="2 2"
+                    opacity={0.4}
+                    label={{ 
+                      position: 'insideRight', 
+                      value: `TARGET: $${targetPrice.toLocaleString()}`, 
+                      fill: "#10b981", 
+                      fontSize: 8,
+                      fontWeight: 'bold'
+                    }} 
+                  />
+                )}
+
+                {/* Línea de Stop Loss */}
+                {stopPrice && (
+                  <ReferenceLine 
+                    y={stopPrice} 
+                    stroke="#ef4444" 
+                    strokeWidth={1}
+                    strokeDasharray="2 2"
+                    opacity={0.4}
+                    label={{ 
+                      position: 'insideRight', 
+                      value: `PROTECTION: $${stopPrice.toLocaleString()}`, 
+                      fill: "#ef4444", 
+                      fontSize: 8,
+                      fontWeight: 'bold'
+                    }} 
+                  />
+                )}
+
+                {/* Marcador de recomendación de IA (no trade) */}
+                {isAnalysis && m.recomendacion !== 'WATCH' && (
+                   <ReferenceLine 
+                    y={formattedData[Math.floor(formattedData.length/2)]?.price} // Un valor dummy o promedio si no hay precio
+                    stroke={m.recomendacion === 'BUY' ? "#10b981" : "#ef4444"} 
+                    strokeWidth={1}
+                    strokeDasharray="2 2"
+                    label={{ 
+                      position: 'insideBottomLeft', 
+                      value: `IA SUGGEST: ${m.recomendacion}`, 
+                      fill: m.recomendacion === 'BUY' ? "#10b981" : "#ef4444", 
+                      fontSize: 9,
+                      fontWeight: 'black'
+                    }} 
+                  />
+                )}
+              </React.Fragment>
             );
           })}
         </AreaChart>
