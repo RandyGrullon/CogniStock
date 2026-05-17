@@ -8,7 +8,7 @@
  *   backend/data/indicators.py.
  */
 
-import { getQuote } from "./tradingview/client";
+import { getQuote, toTvSymbol, TradingViewLiveClient } from "./tradingview/client";
 import { getServerWsFactory } from "./tradingview/server";
 
 export type Candle = {
@@ -32,8 +32,8 @@ export type TickerData = {
   source: "tradingview" | "yahoo" | "error";
 };
 
-const YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart";
-const YAHOO_QUOTE = "https://query1.finance.yahoo.com/v7/finance/quote";
+const YAHOO_CHART = "https://query2.finance.yahoo.com/v8/finance/chart";
+const YAHOO_QUOTE = "https://query2.finance.yahoo.com/v7/finance/quote";
 
 function mapToYahoo(ticker: string): string {
   const map: Record<string, string> = {
@@ -63,24 +63,40 @@ async function fetchJson(url: string, init?: RequestInit): Promise<any> {
 }
 
 /** Yahoo a veces incluye un dato fast en /chart con `meta.regularMarketPrice`. */
-async function yahooFastPrice(ticker: string): Promise<number> {
+async function yahooFastPrice(ticker: string): Promise<TickerData> {
   const mapped = mapToYahoo(ticker);
   const data = await fetchJson(
     `${YAHOO_CHART}/${encodeURIComponent(mapped)}?interval=1m&range=1d`
   );
-  const price =
-    data?.chart?.result?.[0]?.meta?.regularMarketPrice ??
-    data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.slice(-1)?.[0];
+  const meta = data?.chart?.result?.[0]?.meta;
+  const price = meta?.regularMarketPrice ?? data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.slice(-1)?.[0];
+  
   if (typeof price !== "number") throw new Error(`Yahoo: precio no disponible para ${ticker}`);
-  return price;
+  
+  const prevClose = meta?.previousClose;
+  let change = null;
+  let changePercent = null;
+  if (typeof prevClose === "number") {
+    change = price - prevClose;
+    changePercent = (change / prevClose) * 100;
+  }
+
+  return { 
+    price, 
+    change, 
+    changePercent,
+    source: "yahoo" 
+  };
 }
 
 async function yahooQuote(ticker: string): Promise<TickerData> {
   const mapped = mapToYahoo(ticker);
   const data = await fetchJson(`${YAHOO_QUOTE}?symbols=${encodeURIComponent(mapped)}`);
   const q = data?.quoteResponse?.result?.[0] ?? {};
+  if (!q.regularMarketPrice) return await yahooFastPrice(ticker);
+  
   return {
-    price: q.regularMarketPrice ?? (await yahooFastPrice(ticker)),
+    price: q.regularMarketPrice,
     change: q.regularMarketChange ?? null,
     changePercent: q.regularMarketChangePercent ?? null,
     market_cap: q.marketCap ?? null,
@@ -92,13 +108,66 @@ async function yahooQuote(ticker: string): Promise<TickerData> {
   };
 }
 
+export async function getMultiQuotesTV(tickers: string[]): Promise<Record<string, TickerData>> {
+  const client = new TradingViewLiveClient({ wsFactory: getServerWsFactory() });
+  const results: Record<string, TickerData> = {};
+  const tvToOriginal: Record<string, string> = {};
+  const remaining = new Set<string>();
+
+  tickers.forEach(t => {
+    const tv = toTvSymbol(t);
+    tvToOriginal[tv] = t;
+    remaining.add(tv);
+  });
+
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      client.disconnect();
+      resolve(results);
+    }, 8000); // Increased timeout for batch
+
+    client.onTick((tick) => {
+      const tvSym = toTvSymbol(tick.symbol);
+      const original = tvToOriginal[tvSym];
+      if (original && remaining.has(tvSym)) {
+        results[original] = {
+          price: tick.price,
+          change: tick.change,
+          changePercent: tick.changePercent,
+          source: "tradingview"
+        };
+        remaining.delete(tvSym);
+        if (remaining.size === 0) {
+          clearTimeout(timeout);
+          client.disconnect();
+          resolve(results);
+        }
+      }
+    });
+
+    tickers.forEach(s => client.subscribe(s));
+    client.connect();
+  });
+}
+
 export async function getBatchQuotes(tickers: string[]): Promise<Record<string, TickerData>> {
+  // Try TradingView first for batch as it's more reliable
+  const tvResults = await getMultiQuotesTV(tickers);
+  
+  // If we got everything, return it
+  if (Object.keys(tvResults).length === tickers.length) {
+    return tvResults;
+  }
+
+  // Otherwise, try Yahoo for missing ones
+  const missing = tickers.filter(t => !tvResults[t]);
+  const out: Record<string, TickerData> = { ...tvResults };
+
   try {
-    const mappedTickers = tickers.map(mapToYahoo);
+    const mappedTickers = missing.map(mapToYahoo);
     const data = await fetchJson(`${YAHOO_QUOTE}?symbols=${encodeURIComponent(mappedTickers.join(","))}`);
     const results = data?.quoteResponse?.result ?? [];
     
-    const out: Record<string, TickerData> = {};
     for (const q of results) {
       const sym = q.symbol;
       const originalSym = tickers.find(t => mapToYahoo(t) === sym) || sym;
@@ -114,11 +183,25 @@ export async function getBatchQuotes(tickers: string[]): Promise<Record<string, 
         source: "yahoo",
       };
     }
-    return out;
   } catch (e) {
-    console.warn("[marketData] Error in getBatchQuotes:", e);
-    return {};
+    console.warn("[marketData] Error in getBatchQuotes Yahoo fallback:", e);
   }
+
+  // For anything still missing, try individual Yahoo Fast Price (Chart)
+  const stillMissing = tickers.filter(t => !out[t]);
+  if (stillMissing.length > 0) {
+    const individualPromises = stillMissing.map(async t => {
+      try {
+        const data = await yahooFastPrice(t);
+        out[t] = data;
+      } catch {
+        // give up
+      }
+    });
+    await Promise.all(individualPromises);
+  }
+
+  return out;
 }
 
 export async function getTickerData(ticker: string): Promise<TickerData> {
@@ -131,6 +214,8 @@ export async function getTickerData(ticker: string): Promise<TickerData> {
     if (typeof tick.price === "number") {
       return {
         price: tick.price,
+        change: tick.change,
+        changePercent: tick.changePercent,
         source: "tradingview",
         market_cap: null,
         pe_ratio: null,
@@ -147,8 +232,7 @@ export async function getTickerData(ticker: string): Promise<TickerData> {
     return await yahooQuote(ticker);
   } catch {
     try {
-      const price = await yahooFastPrice(ticker);
-      return { price, source: "yahoo" };
+      return await yahooFastPrice(ticker);
     } catch {
       console.warn(`[marketData] All price fallbacks failed for ${ticker}`);
       return { price: 0, source: "error" };
@@ -174,7 +258,7 @@ export async function getTickerNews(ticker: string): Promise<any[]> {
 
 export async function getMarketMovers(type: 'day_gainers' | 'day_losers' | 'most_actives' = 'day_gainers', count = 5) {
   try {
-    const data = await fetchJson(`https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&lang=en-US&region=US&scrIds=${type}&count=${count}`);
+    const data = await fetchJson(`https://query2.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&lang=en-US&region=US&scrIds=${type}&count=${count}`);
     const quotes = data?.finance?.result?.[0]?.quotes ?? [];
     return quotes.map((q: any) => ({
       symbol: q.symbol,

@@ -337,3 +337,56 @@ Genera un JSON con este formato exacto:
 `;
   return groqJson<ChatSessionSummary>([{ role: "user", content: prompt }]);
 }
+
+export type MarketAIOverview = {
+  top_assets: { symbol: string; reason: string }[];
+  summary: string;
+  movers_analysis: {
+    gainers: { symbol: string; ai_comment: string }[];
+    losers: { symbol: string; ai_comment: string }[];
+    actives: { symbol: string; ai_comment: string }[];
+  };
+};
+
+export async function generateAIMarketOverview(data: {
+  gainers: any[];
+  losers: any[];
+  actives: any[];
+  news: any[];
+}): Promise<MarketAIOverview> {
+  const prompt = `
+Eres CogniStock, la IA analista financiera definitiva. Tu misión es procesar el ruido del mercado y extraer sabiduría pura.
+
+DATOS CRUDOS DEL MERCADO:
+- GANADORES: ${JSON.stringify(data.gainers.slice(0, 8))}
+- PERDEDORES: ${JSON.stringify(data.losers.slice(0, 8))}
+- MÁS ACTIVOS: ${JSON.stringify(data.actives.slice(0, 8))}
+- NOTICIAS: ${JSON.stringify(data.news.slice(0, 10))}
+
+TAREAS DE ANÁLISIS:
+1. "AI TOP PICKS": Selecciona los 4 activos más críticos del momento (pueden ser de los datos anteriores o índices clave como BTC, NVDA, SPY, Gold). Proporciona una razón analítica profunda.
+2. "MARKET INTELLIGENCE": Redacta un resumen magistral, decorado con emojis y con un tono de "insider" experto. Explica el "por qué" detrás del movimiento de hoy.
+3. "MOVERS ANALYSIS": Selecciona los 5 mejores de cada categoría (Gainers, Losers, Actives) y añade un comentario ultra-breve de IA sobre por qué están ahí o qué esperar.
+
+Responde ÚNICAMENTE en JSON:
+{
+  "top_assets": [
+    { "symbol": "TICKER", "reason": "Razón analítica de peso" }
+  ],
+  "summary": "Resumen detallado y decorado...",
+  "movers_analysis": {
+    "gainers": [{ "symbol": "TICKER", "ai_comment": "comentario" }],
+    "losers": [{ "symbol": "TICKER", "ai_comment": "comentario" }],
+    "actives": [{ "symbol": "TICKER", "ai_comment": "comentario" }]
+  }
+}
+`;
+
+  return groqJson<MarketAIOverview>([
+    {
+      role: "system",
+      content: "Eres CogniStock AI, capaz de ver patrones donde otros ven caos. Tu análisis es decisivo, profesional y visionario.",
+    },
+    { role: "user", content: prompt },
+  ], { temperature: 0.5 });
+}

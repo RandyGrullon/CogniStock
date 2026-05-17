@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
-import { getTickerData, getPriceHistory, getTickerNews, getMarketMovers, getBatchQuotes } from "@/lib/marketData";
+import { getPriceHistory, getTickerNews, getMarketMovers, getBatchQuotes } from "@/lib/marketData";
+import { generateAIMarketOverview } from "@/lib/groq";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const INDICES = [
-  { symbol: "^GSPC", name: "S&P Futures" },
-  { symbol: "^IXIC", name: "NASDAQ Fut." },
-  { symbol: "^DJI", name: "Dow Futures" },
-  { symbol: "^VIX", name: "VIX" },
-];
 
 const SECTORS = [
   { symbol: "XLK", name: "Technology" },
@@ -27,60 +21,105 @@ const SECTORS = [
 
 export async function GET() {
   try {
-    // Batch fetch all current quotes (Indices + Sectors) to save API calls
-    const allSymbols = [...INDICES.map(i => i.symbol), ...SECTORS.map(s => s.symbol)];
-    const batchedQuotes = await getBatchQuotes(allSymbols);
+    // 1. Fetch deep market data for AI context
+    const [gainersRaw, losersRaw, activesRaw, news] = await Promise.all([
+      getMarketMovers("day_gainers", 15),
+      getMarketMovers("day_losers", 15),
+      getMarketMovers("most_actives", 15),
+      getTickerNews("SPY")
+    ]);
 
-    // Fetch indices data and charts in parallel
-    const indicesPromises = INDICES.map(async (idx) => {
+    // 2. AI orchestrates the entire dashboard logic
+    const aiResult = await generateAIMarketOverview({ 
+      gainers: gainersRaw, 
+      losers: losersRaw, 
+      actives: activesRaw, 
+      news 
+    });
+
+    // 3. Extract all symbols mentioned by AI to fetch their real-time quotes
+    const aiTopSymbols = aiResult.top_assets.map(a => a.symbol);
+    const aiGainerSymbols = aiResult.movers_analysis.gainers.map(a => a.symbol);
+    const aiLoserSymbols = aiResult.movers_analysis.losers.map(a => a.symbol);
+    const aiActiveSymbols = aiResult.movers_analysis.actives.map(a => a.symbol);
+
+    const allSymbolsToFetch = Array.from(new Set([
+      ...aiTopSymbols,
+      ...aiGainerSymbols,
+      ...aiLoserSymbols,
+      ...aiActiveSymbols,
+      ...SECTORS.map(s => s.symbol)
+    ]));
+
+    // 4. Batch fetch real-time quotes (TV + Yahoo fallback)
+    const batchedQuotes = await getBatchQuotes(allSymbolsToFetch);
+
+    // 5. Construct Top Assets with AI reasoning and Real Percentages
+    const topAssetsPromises = aiResult.top_assets.map(async (asset) => {
       try {
-        const quote = batchedQuotes[idx.symbol];
-        const history = await getPriceHistory(idx.symbol, "1d", "15m");
+        const quote = batchedQuotes[asset.symbol];
+        const history = await getPriceHistory(asset.symbol, "1d", "15m");
         const price = quote?.price ?? 0;
         let change = quote?.change ?? 0;
         let changePercent = quote?.changePercent ?? 0;
-        if (history.length > 0 && !change) {
+
+        // Fallback calculation for percentages if API is missing them
+        if (history.length > 0 && (changePercent === 0 || changePercent === null)) {
           const openPrice = history[0].open;
           change = price - openPrice;
           changePercent = (change / openPrice) * 100;
         }
 
         return {
-          symbol: idx.symbol,
-          name: idx.name,
+          symbol: asset.symbol,
+          name: asset.symbol,
           price,
           change,
           changePercent,
+          reason: asset.reason,
           chart: history.map((c) => c.close),
+          source: quote?.source || 'yahoo'
         };
       } catch (e) {
-        return { symbol: idx.symbol, name: idx.name, price: 0, change: 0, changePercent: 0, chart: [] };
+        return { symbol: asset.symbol, name: asset.symbol, price: 0, change: 0, changePercent: 0, chart: [], reason: asset.reason };
       }
     });
 
-    const sectorsData = SECTORS.map((sec) => {
-      const quote = batchedQuotes[sec.symbol];
-      return { 
-        symbol: sec.symbol, 
-        name: sec.name, 
-        changePercent: quote?.changePercent ?? 0, 
-        marketCap: quote?.market_cap ?? 10000000000 
+    // 6. Map AI-commented Movers with real-time prices
+    const mapMover = (aiMovers: any[]) => aiMovers.map(am => {
+      const q = batchedQuotes[am.symbol];
+      return {
+        symbol: am.symbol,
+        name: am.symbol,
+        price: q?.price ?? 0,
+        percent: q?.changePercent ?? 0,
+        ai_comment: am.ai_comment
       };
     });
 
-    const [indicesDataResolved, gainers, losers, actives, news] = await Promise.all([
-      Promise.all(indicesPromises),
-      getMarketMovers("day_gainers", 5),
-      getMarketMovers("day_losers", 5),
-      getMarketMovers("most_actives", 5),
-      getTickerNews("SPY")
+    const [topAssets, sectorsData] = await Promise.all([
+      Promise.all(topAssetsPromises),
+      Promise.resolve(SECTORS.map(sec => {
+        const q = batchedQuotes[sec.symbol];
+        return { 
+          symbol: sec.symbol, 
+          name: sec.name, 
+          changePercent: q?.changePercent ?? 0, 
+          marketCap: q?.market_cap ?? 0
+        };
+      }))
     ]);
 
     return NextResponse.json({
-      assets: indicesDataResolved,
+      assets: topAssets,
       sectors: sectorsData,
-      movers: { gainers, losers, actives },
+      movers: { 
+        gainers: mapMover(aiResult.movers_analysis.gainers), 
+        losers: mapMover(aiResult.movers_analysis.losers), 
+        actives: mapMover(aiResult.movers_analysis.actives) 
+      },
       news: news,
+      aiSummary: aiResult.summary
     });
   } catch (error: any) {
     console.error("Market Overview Error:", error);

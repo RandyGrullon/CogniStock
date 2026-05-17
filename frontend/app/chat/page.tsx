@@ -80,10 +80,13 @@ export default function AIChatPage() {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: "smooth",
-      });
+      const scrollContainer = scrollRef.current;
+      // Scroll instantáneo para evitar el lag de 'smooth' en dispositivos menos potentes
+      // o durante actualizaciones rápidas de contenido.
+      const timer = setTimeout(() => {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [messages, isTyping]);
 
@@ -142,7 +145,10 @@ export default function AIChatPage() {
         }),
       });
 
-      if (!response.ok) throw new Error("Fallo en la comunicación con el núcleo.");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || "Fallo en la comunicación con el núcleo.");
+      }
 
       const data = await response.json();
       setMessages((prev) => [
@@ -157,12 +163,12 @@ export default function AIChatPage() {
         },
       ]);
     } catch (err: any) {
-      setError("Error de conexión con el núcleo central.");
+      setError(err.message || "Error de conexión con el núcleo central.");
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "ERROR: Se ha perdido la conexión con el núcleo de CogniStock.",
+          content: `ERROR: ${err.message || "Se ha perdido la conexión con el núcleo de CogniStock."}`,
           timestamp: "ERROR",
         },
       ]);
@@ -195,7 +201,6 @@ export default function AIChatPage() {
           animate={{ opacity: 1, x: 0 }}
           className="flex items-center gap-3"
         >
-          {/* Cronómetro de sesión */}
           <SessionTimer started={sessionStartedAt} elapsed={elapsed} />
 
           <div className="px-4 py-2 bg-zinc-900/50 border border-white/5 rounded-xl flex items-center gap-2">
@@ -374,8 +379,13 @@ function ChatMessage({ msg }: { msg: Msg }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.98 }}
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ 
+        type: "spring", 
+        stiffness: 260, 
+        damping: 20 
+      }}
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
       <div className={`flex gap-5 max-w-[90%] md:max-w-[85%] ${isUser ? "flex-row-reverse" : "flex-row"}`}>
@@ -393,14 +403,15 @@ function ChatMessage({ msg }: { msg: Msg }) {
         </div>
         <div className="space-y-2 group flex-1">
           <div
-            className={`relative p-6 rounded-[2.2rem] text-[15px] leading-relaxed shadow-2xl transition-all border overflow-hidden ${
-              isUser
-                ? "bg-blue-600 border-blue-400/30 text-white rounded-tr-none"
-                : "bg-zinc-900/80 border-white/10 text-zinc-300 rounded-tl-none backdrop-blur-xl"
-            }`}
+          className={`relative p-6 rounded-[2.2rem] text-[15px] leading-relaxed shadow-2xl transition-all border overflow-hidden ${
+            isUser
+              ? "bg-blue-600 border-blue-400/30 text-white rounded-tr-none"
+              : "bg-zinc-900 border-white/10 text-zinc-300 rounded-tl-none"
+          }`}
           >
-            {!isUser && <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />}
-            <div className="relative z-10">{renderContent(msg.content)}</div>
+          {!isUser && <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />}
+          <div className="relative z-10">{renderContent(msg.content)}</div>
+
             {!isUser && (
               <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                 <button

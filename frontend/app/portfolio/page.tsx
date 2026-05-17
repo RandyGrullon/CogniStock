@@ -1,251 +1,349 @@
 "use client";
 
-import React from 'react';
-import { motion } from "framer-motion";
+import React, { useMemo } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Briefcase, TrendingUp, TrendingDown, DollarSign, 
+  TrendingUp, TrendingDown, DollarSign, 
   PieChart, Clock, ArrowUpRight, ArrowDownRight, 
-  BarChart3, Layers, Wallet, History, Search,
-  ArrowRightLeft
+  BarChart3, Layers, Wallet, History, 
+  ArrowRightLeft, Activity, Target, ShieldCheck, 
+  ChevronRight, Download, Filter, Info, Cpu
 } from "lucide-react";
 import useSWR from 'swr';
 import { 
   PieChart as RePieChart, Pie, Cell, ResponsiveContainer, 
   Tooltip as ReTooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid 
 } from 'recharts';
+import Link from 'next/link';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function PortfolioPage() {
-  const { data: status } = useSWR('/api/portfolio/status', fetcher, { refreshInterval: 5000 });
-  const { data: trades } = useSWR('/api/portfolio/trades', fetcher, { refreshInterval: 5000 });
+  const { data: status, isLoading: loadingStatus } = useSWR('/api/portfolio/status', fetcher, { refreshInterval: 5000 });
+  const { data: trades, isLoading: loadingTrades } = useSWR('/api/portfolio/trades', fetcher, { refreshInterval: 5000 });
 
-  const openTrades = trades?.filter((t: any) => t.estado === 'OPEN') || [];
-  const closedTrades = trades?.filter((t: any) => t.estado === 'CLOSED') || [];
+  const openTrades = useMemo(() => trades?.filter((t: any) => t.estado === 'OPEN') || [], [trades]);
+  const closedTrades = useMemo(() => trades?.filter((t: any) => t.estado === 'CLOSED') || [], [trades]);
+
+  const totalPnL = useMemo(() => openTrades.reduce((acc: number, t: any) => acc + (t.pnl || 0), 0), [openTrades]);
+  const winRate = useMemo(() => {
+    if (!status?.total_trades || status.total_trades === 0) return 0;
+    return (status.trades_ganadores / status.total_trades) * 100;
+  }, [status]);
 
   // Data for Allocation Chart
-  const allocationData = openTrades.length > 0 
-    ? openTrades.map((t: any) => ({ name: t.ticker, value: t.precio_actual * t.acciones }))
-    : [{ name: 'Cash', value: status?.capital_disponible || 100000 }];
+  const allocationData = useMemo(() => {
+    const assets = openTrades.map((t: any) => ({ name: t.ticker, value: t.precio_actual * t.acciones }));
+    const cash = { name: 'Available Cash', value: status?.capital_disponible || 0 };
+    return assets.length > 0 ? [...assets, cash] : [cash];
+  }, [openTrades, status]);
 
-  const COLORS = ['#3b82f6', '#10b981', '#6366f1', '#f59e0b', '#ec4899', '#8b5cf6'];
+  const COLORS = ['#3b82f6', '#10b981', '#6366f1', '#f59e0b', '#ec4899', '#8b5cf6', '#34d399', '#fbbf24'];
 
   return (
-    <div className="space-y-10 pb-20">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
-            Gestión de Activos
+    <main className="flex-1 p-6 space-y-8 overflow-y-auto bg-[#050505] text-zinc-300">
+      {/* Header Elite */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/5 pb-8">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Capital Management Division</span>
+          </div>
+          <h1 className="text-5xl font-black tracking-tighter text-white flex items-center gap-4">
+            <ShieldCheck className="text-blue-500" size={40} />
+            ASSET CONTROL
           </h1>
-          <p className="text-zinc-500 font-medium">Control total de tu capital y rendimiento en tiempo real</p>
+          <p className="text-zinc-500 font-medium max-w-xl leading-relaxed">
+            Visión panorámica de exposición, métricas de rendimiento neural y gestión de liquidez institucional.
+          </p>
         </div>
+
         <div className="flex gap-3">
-            <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-lg shadow-blue-500/20">
+            <button className="px-5 py-3 bg-white text-black hover:bg-zinc-200 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center space-x-2 shadow-xl active:scale-95">
+                <Download size={14} />
+                <span>Export Report</span>
+            </button>
+            <button className="px-5 py-3 bg-blue-600/10 border border-blue-500/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center space-x-2 active:scale-95">
                 <ArrowRightLeft size={14} />
-                <span>Ejecutar Rebalanceo</span>
+                <span>Rebalance Neural</span>
             </button>
         </div>
       </header>
 
-      {/* Grid de KPIs Superiores */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Primary KPI Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard 
-          label="Valor Total Cuenta" 
-          value={`$${status?.capital_total?.toLocaleString() || '100,000'}`} 
-          subValue="Patrimonio Neto"
-          icon={<Wallet className="text-blue-500" />} 
-          trend="+4.3%"
+          label="Net Equity Value" 
+          value={`$${status?.capital_total?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '---'}`} 
+          subValue="Total Portfolio Value"
+          icon={<Wallet className="text-blue-500" size={18} />} 
+          trend="+12.4%"
           positive={true}
         />
         <MetricCard 
-          label="P&L No Realizado" 
-          value={`$${openTrades.reduce((acc: number, t: any) => acc + (t.pnl || 0), 0).toLocaleString()}`} 
-          subValue="Posiciones abiertas"
-          icon={<TrendingUp className="text-emerald-500" />} 
-          trend="+2.1%"
-          positive={true}
+          label="Unrealized P&L" 
+          value={`$${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+          subValue={`${openTrades.length} Active Positions`}
+          icon={<Activity className={`text-emerald-500 ${totalPnL >= 0 ? 'text-emerald-500' : 'text-red-500'}`} size={18} />} 
+          trend={`${totalPnL >= 0 ? '+' : ''}${(status?.capital_total ? (totalPnL / status.capital_total) * 100 : 0).toFixed(2)}%`}
+          positive={totalPnL >= 0}
         />
         <MetricCard 
-          label="P&L Realizado" 
-          value={`$${closedTrades.reduce((acc: number, t: any) => acc + (t.pnl || 0), 0).toLocaleString()}`} 
-          subValue="Trades cerrados"
-          icon={<History className="text-purple-500" />} 
-          trend="-0.5%"
-          positive={false}
+          label="AI Win Rate" 
+          value={`${winRate.toFixed(1)}%`} 
+          subValue={`Based on ${status?.total_trades || 0} Trades`}
+          icon={<Target className="text-purple-500" size={18} />} 
+          trend="Optimal"
+          positive={winRate > 50}
         />
         <MetricCard 
-          label="Cash Disponible" 
-          value={`$${status?.capital_disponible?.toLocaleString() || '100,000'}`} 
-          subValue="Poder de compra"
-          icon={<DollarSign className="text-orange-500" />} 
-          trend="100%"
+          label="Liquid Capital" 
+          value={`$${status?.capital_disponible?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '---'}`} 
+          subValue="Ready to Deploy"
+          icon={<DollarSign className="text-orange-500" size={18} />} 
+          trend="100% Secure"
           positive={true}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Gráfico de Distribución */}
-        <div className="lg:col-span-1 glass-card rounded-3xl border border-white/5 p-8 flex flex-col">
-            <div className="flex items-center justify-between mb-8">
-                <h2 className="text-lg font-bold flex items-center space-x-2">
-                    <PieChart size={18} className="text-blue-500" />
-                    <span>Asset Allocation</span>
-                </h2>
-                <Layers size={16} className="text-zinc-600" />
-            </div>
-            <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <RePieChart>
-                        <Pie
-                            data={allocationData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                        >
-                            {allocationData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                        </Pie>
-                        <ReTooltip 
-                            contentStyle={{ backgroundColor: '#0a0a0a', border: '1px solid #1e293b', borderRadius: '12px' }}
-                            itemStyle={{ color: '#fff' }}
-                        />
-                    </RePieChart>
-                </ResponsiveContainer>
-            </div>
-            <div className="mt-6 space-y-3">
-                {allocationData.map((entry, index) => (
-                    <div key={index} className="flex items-center justify-between text-xs">
-                        <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                            <span className="text-zinc-400 font-medium">{entry.name}</span>
-                        </div>
-                        <span className="font-mono font-bold">${entry.value.toLocaleString()}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Allocation & Intelligence (Cols: 4) */}
+        <div className="lg:col-span-4 space-y-6">
+            <div className="bg-[#0a0a0a] border border-white/5 rounded-[2.5rem] p-8 flex flex-col relative overflow-hidden group h-full">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-50 pointer-events-none" />
+                
+                <div className="flex items-center justify-between mb-8 relative z-10">
+                    <h2 className="text-sm font-black uppercase tracking-[0.2em] flex items-center space-x-3 text-white">
+                        <Layers size={18} className="text-blue-500" />
+                        <span>Asset Allocation</span>
+                    </h2>
+                    <div className="p-2 bg-white/5 rounded-xl text-zinc-500"><PieChart size={16} /></div>
+                </div>
+
+                <div className="h-[280px] w-full relative z-10">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <RePieChart>
+                            <Pie
+                                data={allocationData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={70}
+                                outerRadius={100}
+                                paddingAngle={8}
+                                dataKey="value"
+                                stroke="none"
+                            >
+                                {allocationData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="hover:opacity-80 transition-opacity cursor-pointer" />
+                                ))}
+                            </Pie>
+                            <ReTooltip 
+                                contentStyle={{ backgroundColor: '#0a0a0a', border: '1px solid #1e293b', borderRadius: '16px', fontSize: '12px', fontWeight: 'bold' }}
+                                itemStyle={{ color: '#fff' }}
+                            />
+                        </RePieChart>
+                    </ResponsiveContainer>
+                    {/* Center Text */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Diversification</span>
+                        <span className="text-2xl font-black text-white font-mono">{allocationData.length - 1} Assets</span>
                     </div>
-                ))}
+                </div>
+
+                <div className="mt-8 space-y-4 relative z-10 overflow-y-auto max-h-[200px] custom-scrollbar pr-2">
+                    {allocationData.map((entry, index) => (
+                        <div key={index} className="flex items-center justify-between group/item">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_10px_rgba(0,0,0,0.5)]" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                <span className="text-[11px] font-bold text-zinc-400 group-hover/item:text-white transition-colors uppercase tracking-wider">{entry.name}</span>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-xs font-mono font-black text-white">${entry.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-tighter">
+                                    {status?.capital_total ? ((entry.value / status.capital_total) * 100).toFixed(1) : 0}%
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
 
-        {/* Tabla de Posiciones Activas */}
-        <div className="lg:col-span-2 space-y-6">
-            <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold flex items-center space-x-2">
-                    <BarChart3 size={20} className="text-emerald-500" />
-                    <span>Posiciones Activas</span>
+        {/* Active Positions Technical View (Cols: 8) */}
+        <div className="lg:col-span-8 space-y-6">
+            <div className="flex items-center justify-between px-2">
+                <h2 className="text-xl font-black text-white flex items-center gap-3">
+                    <BarChart3 size={24} className="text-emerald-500" />
+                    OPERATIONAL EXPOSURES
                 </h2>
-                <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                    Live Feed • Actualizado cada 5s
+                <div className="flex items-center gap-3">
+                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Streaming
+                  </span>
+                  <button className="p-2 bg-white/5 border border-white/10 rounded-xl text-zinc-400 hover:text-white transition-colors"><Filter size={14}/></button>
                 </div>
             </div>
 
-            <div className="glass-card rounded-3xl border border-white/5 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-white/5 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
-                        <tr>
-                            <th className="px-6 py-4">Activo</th>
-                            <th className="px-6 py-4">Exposición</th>
-                            <th className="px-6 py-4">Precio Entrada</th>
-                            <th className="px-6 py-4">Precio Actual</th>
-                            <th className="px-6 py-4 text-right">P&L (%)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                        {openTrades.length > 0 ? openTrades.map((trade: any) => (
-                            <tr key={trade.id} className="hover:bg-white/5 transition-colors group cursor-pointer">
-                                <td className="px-6 py-5">
-                                    <div className="flex items-center space-x-3">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center font-bold text-blue-500">
-                                            {trade.ticker}
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-sm">{trade.ticker}</p>
-                                            <p className="text-[10px] text-zinc-500 uppercase tracking-tighter">Equity • {trade.acciones} shares</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-5">
-                                    <p className="text-sm font-mono font-bold">${(trade.precio_actual * trade.acciones).toLocaleString()}</p>
-                                    <div className="w-16 h-1 bg-zinc-800 rounded-full mt-1 overflow-hidden">
-                                        <div className="h-full bg-blue-500" style={{ width: '45%' }} />
-                                    </div>
-                                </td>
-                                <td className="px-6 py-5 text-sm text-zinc-400 font-mono">${trade.precio_entrada.toLocaleString()}</td>
-                                <td className="px-6 py-5 text-sm text-zinc-200 font-mono">${trade.precio_actual.toLocaleString()}</td>
-                                <td className="px-6 py-5 text-right">
-                                    <div className={`text-sm font-bold font-mono flex items-center justify-end ${trade.pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                        {trade.pnl >= 0 ? <ArrowUpRight size={14} className="mr-1" /> : <ArrowDownRight size={14} className="mr-1" />}
-                                        {trade.pnl_porcentaje?.toFixed(2)}%
-                                    </div>
-                                    <p className={`text-[10px] font-mono ${trade.pnl >= 0 ? 'text-emerald-500/50' : 'text-red-500/50'}`}>
-                                        {trade.pnl >= 0 ? '+' : ''}${trade.pnl?.toLocaleString()}
-                                    </p>
-                                </td>
+            <div className="bg-[#0a0a0a] border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="bg-white/[0.02] text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
+                                <th className="px-8 py-5">Instrument / Size</th>
+                                <th className="px-8 py-5">Entry Matrix</th>
+                                <th className="px-8 py-5">Market Value</th>
+                                <th className="px-8 py-5 text-right">Performance Alpha</th>
                             </tr>
-                        )) : (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-20 text-center text-zinc-600 italic font-mono text-xs">
-                                    No hay posiciones abiertas registradas en CogniStock
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                            {openTrades.length > 0 ? openTrades.map((trade: any) => {
+                                const isPos = trade.pnl >= 0;
+                                return (
+                                    <tr key={trade.id} className="hover:bg-white/[0.01] transition-all group">
+                                        <td className="px-8 py-6">
+                                            <div className="flex items-center space-x-4">
+                                                <div className="w-12 h-12 rounded-[1rem] bg-blue-500/10 border border-blue-500/20 flex items-center justify-center font-black text-blue-500 text-sm">
+                                                    {trade.ticker.slice(0, 3)}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-white text-lg tracking-tight">{trade.ticker}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${trade.tipo === 'BUY' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>{trade.tipo}</span>
+                                                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">{trade.acciones} UNITS</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            <div className="space-y-1">
+                                              <p className="text-xs font-mono font-bold text-zinc-300">${trade.precio_entrada.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                              <p className="text-[9px] font-black text-zinc-600 uppercase">Avg Cost Basis</p>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            <div className="space-y-1">
+                                              <p className="text-xs font-mono font-bold text-white">${trade.precio_actual.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                              <p className="text-[9px] font-black text-blue-500/80 uppercase">Real-Time Quote</p>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-6 text-right">
+                                            <div className={`text-lg font-black font-mono flex items-center justify-end ${isPos ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {isPos ? <TrendingUp size={16} className="mr-2" /> : <TrendingDown size={16} className="mr-2" />}
+                                                {isPos ? '+' : ''}{trade.pnl_porcentaje?.toFixed(2)}%
+                                            </div>
+                                            <p className={`text-[11px] font-mono font-bold ${isPos ? 'text-emerald-500/60' : 'text-red-500/60'}`}>
+                                                {isPos ? '+' : ''}${trade.pnl?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </p>
+                                        </td>
+                                    </tr>
+                                );
+                            }) : (
+                                <tr>
+                                    <td colSpan={4} className="px-8 py-24 text-center">
+                                        <div className="flex flex-col items-center gap-4">
+                                          <div className="p-4 bg-white/5 rounded-full text-zinc-700"><History size={40} /></div>
+                                          <p className="text-[10px] font-black uppercase text-zinc-600 tracking-[0.4em]">No active exposures in database</p>
+                                          <Link href="/trading" className="text-[10px] font-black text-blue-500 hover:text-blue-400 underline uppercase tracking-widest">Deploy Capital ↗</Link>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
       </div>
 
-      {/* Historial de Actividad Reciente */}
-      <div className="space-y-6">
-          <h2 className="text-xl font-bold flex items-center space-x-2">
-            <Clock size={20} className="text-purple-500" />
-            <span>Historial de Ejecuciones</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {closedTrades.slice(0, 6).map((trade: any) => (
-                  <div key={trade.id} className="glass-card p-5 rounded-2xl border border-white/5 flex items-center justify-between group">
+      {/* Execution Ledger (History) */}
+      <section className="space-y-6 pt-6">
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-xl font-black text-white flex items-center gap-3">
+              <History size={24} className="text-purple-500" />
+              EXECUTION LEDGER
+            </h2>
+            <Link href="/logs" className="text-[10px] font-black text-zinc-500 hover:text-blue-400 uppercase tracking-widest flex items-center gap-2 transition-colors">
+               Full History <ChevronRight size={12} />
+            </Link>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {closedTrades.length > 0 ? closedTrades.slice(0, 8).map((trade: any) => (
+                  <div key={trade.id} className="bg-[#0a0a0a] border border-white/5 p-6 rounded-[2rem] flex items-center justify-between group hover:border-purple-500/30 transition-all shadow-xl">
                       <div className="flex items-center space-x-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${trade.pnl >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                            {trade.ticker}
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xs ${trade.pnl >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                            {trade.ticker.slice(0, 3)}
                         </div>
                         <div>
-                            <p className="font-bold text-sm">{trade.ticker}</p>
-                            <p className="text-[10px] text-zinc-500 font-mono">{new Date(trade.fecha_salida).toLocaleDateString()}</p>
+                            <p className="font-black text-white tracking-tight uppercase">{trade.ticker}</p>
+                            <p className="text-[9px] text-zinc-600 font-bold font-mono">{new Date(trade.fecha_salida).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                          <p className={`text-sm font-bold font-mono ${trade.pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                             {trade.pnl >= 0 ? '+' : ''}${trade.pnl.toLocaleString()}
+                          <p className={`text-sm font-black font-mono ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                             {trade.pnl >= 0 ? '+' : ''}${trade.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                           </p>
-                          <p className="text-[10px] text-zinc-600 uppercase font-bold tracking-tighter">Cerrado</p>
+                          <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                             <div className="w-1 h-1 rounded-full bg-zinc-700" />
+                             <p className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">Settled</p>
+                          </div>
                       </div>
                   </div>
-              ))}
+              )) : (
+                <div className="col-span-full py-20 bg-[#0a0a0a] border border-dashed border-white/5 rounded-[2rem] text-center">
+                   <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em]">Execution ledger empty</p>
+                </div>
+              )}
           </div>
-      </div>
-    </div>
+      </section>
+
+      {/* Neural Link Info Footer */}
+      <footer className="pt-12 pb-6 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-white/5 opacity-50">
+         <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+               <Cpu size={14} className="text-blue-500" />
+               <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">CogniStock v2.4-Alpha</span>
+            </div>
+            <div className="flex items-center gap-2">
+               <ShieldCheck size={14} className="text-emerald-500" />
+               <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">End-to-End Neural Encryption</span>
+            </div>
+         </div>
+         <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 italic">
+            "Market dominance through superior cognitive processing"
+         </p>
+      </footer>
+    </main>
   );
 }
 
 function MetricCard({ label, value, subValue, icon, trend, positive }: any) {
   return (
-    <div className="glass-card p-6 rounded-3xl border border-white/5 flex flex-col space-y-4 group hover:border-blue-500/30 transition-all">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-[#0a0a0a] p-6 rounded-[2rem] border border-white/5 flex flex-col space-y-5 group hover:border-blue-500/30 transition-all shadow-lg"
+    >
       <div className="flex items-center justify-between">
-        <div className="p-2.5 rounded-xl bg-white/5 group-hover:bg-white/10 transition-colors">
+        <div className="p-3 rounded-2xl bg-white/5 border border-white/5 group-hover:bg-blue-500/10 group-hover:border-blue-500/20 transition-all text-zinc-400 group-hover:text-blue-400">
           {icon}
         </div>
-        <div className={`flex items-center space-x-1 text-xs font-mono font-bold ${positive ? 'text-emerald-500' : 'text-red-500'}`}>
-          {positive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-          <span>{trend}</span>
+        <div className={`px-3 py-1 rounded-full text-[10px] font-black font-mono border ${positive ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+          <div className="flex items-center gap-1.5">
+            {positive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+            {trend}
+          </div>
         </div>
       </div>
       <div>
-        <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{label}</p>
-        <p className="text-2xl font-black mt-1 tracking-tight text-white">{value}</p>
-        <p className="text-zinc-600 text-[10px] font-mono mt-1">{subValue}</p>
+        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em]">{label}</p>
+        <p className="text-3xl font-black mt-2 tracking-tighter text-white font-mono">{value}</p>
+        <div className="flex items-center gap-2 mt-2">
+          <div className="w-1 h-1 rounded-full bg-blue-500" />
+          <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest">{subValue}</p>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

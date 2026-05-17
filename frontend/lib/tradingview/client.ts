@@ -41,6 +41,23 @@ export const SYMBOL_MAP: Record<string, string> = {
   GOOGL: "NASDAQ:GOOGL",
   SPY: "AMEX:SPY",
   QQQ: "NASDAQ:QQQ",
+  // Indices
+  "^GSPC": "SP:SPX",
+  "^IXIC": "TVC:IXIC",
+  "^DJI": "DJ:DJI",
+  "^VIX": "CBOE:VIX",
+  // Sectors
+  XLK: "AMEX:XLK",
+  XLF: "AMEX:XLF",
+  XLV: "AMEX:XLV",
+  XLY: "AMEX:XLY",
+  XLC: "AMEX:XLC",
+  XLI: "AMEX:XLI",
+  XLP: "AMEX:XLP",
+  XLE: "AMEX:XLE",
+  XLU: "AMEX:XLU",
+  XLRE: "AMEX:XLRE",
+  XLB: "AMEX:XLB",
 };
 
 export function toTvSymbol(input: string): string {
@@ -183,6 +200,7 @@ export class TradingViewLiveClient {
 
     const handleMessage = (ev: any) => {
       const raw: string = typeof ev?.data === "string" ? ev.data : String(ev?.data ?? ev);
+      // console.log("TV WS: Raw message", raw);
       // Heartbeat: ~m~LEN~m~~h~N -> hay que devolverlo tal cual
       const heartbeat = raw.match(/~m~\d+~m~~h~\d+/);
       if (heartbeat) {
@@ -236,17 +254,20 @@ export class TradingViewLiveClient {
       }
     };
 
-    if (typeof ws.addEventListener === "function") {
-      ws.addEventListener("open", handleOpen);
-      ws.addEventListener("message", handleMessage);
-      ws.addEventListener("close", handleClose);
-      ws.addEventListener("error", handleError);
-    } else {
-      ws.onopen = handleOpen;
-      ws.onmessage = handleMessage;
-      ws.onclose = handleClose;
-      ws.onerror = handleError;
-    }
+    const attach = (name: string, cb: any) => {
+      if (typeof (ws as any).addEventListener === "function") {
+        (ws as any).addEventListener(name, cb);
+      } else if (typeof (ws as any).on === "function") {
+        (ws as any).on(name, cb);
+      } else {
+        (ws as any)[`on${name}`] = cb;
+      }
+    };
+
+    attach("open", handleOpen);
+    attach("message", handleMessage);
+    attach("close", handleClose);
+    attach("error", handleError);
   }
 
   disconnect(): void {

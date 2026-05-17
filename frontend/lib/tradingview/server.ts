@@ -12,11 +12,10 @@ let cached: WSFactory | null = null;
 
 export function getServerWsFactory(): WSFactory {
   if (cached) return cached;
+  // Preferimos WebSocketNode (paquete 'ws') en el servidor porque permite 
+  // configurar el header 'Origin', indispensable para TradingView.
+  // El WebSocket nativo de Node 21+ no permite headers personalizados.
   cached = (url, opts) => {
-    const G = globalThis as typeof globalThis & { WebSocket?: new (u: string) => unknown };
-    if (typeof G.WebSocket === "function") {
-      return new G.WebSocket(url) as ReturnType<WSFactory>;
-    }
     return new WebSocketNode(url, {
       headers: { Origin: opts?.origin ?? "https://www.tradingview.com" },
     }) as ReturnType<WSFactory>;

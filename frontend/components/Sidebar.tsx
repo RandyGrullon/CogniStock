@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { 
   LayoutDashboard, Briefcase, Zap, GraduationCap, 
   Settings, Terminal, MessageSquare, LineChart,
-  ChevronLeft, ChevronRight, Menu, Network, Globe
+  ChevronLeft, ChevronRight, Menu, Network, Globe, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import NeuralArchitectureModal from './NeuralArchitectureModal';
@@ -14,14 +14,31 @@ import NeuralArchitectureModal from './NeuralArchitectureModal';
 export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Cerrar sidebar móvil al cambiar de ruta
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
 
   return (
     <>
+      {/* Mobile Menu Trigger */}
+      <div className="lg:hidden fixed top-4 left-4 z-[100]">
+        <button 
+          onClick={() => setIsMobileOpen(true)}
+          className="p-2.5 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-500/30 active:scale-95 transition-all"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
+      {/* Desktop Sidebar */}
       <motion.aside 
         initial={false}
         animate={{ width: isCollapsed ? 80 : 256 }}
-        className="h-screen border-r border-white/5 flex flex-col items-center lg:items-start p-4 lg:p-6 space-y-8 bg-[#0a0a0a] relative z-50 shadow-2xl transition-all duration-300 ease-in-out"
+        className="hidden lg:flex h-screen border-r border-white/5 flex-col items-center lg:items-start p-4 lg:p-6 space-y-8 bg-[#0a0a0a] relative z-50 shadow-2xl transition-all duration-300 ease-in-out"
       >
         <div className="flex items-center justify-between w-full px-2">
           <div className="flex items-center space-x-3 overflow-hidden">
@@ -91,6 +108,61 @@ export default function Sidebar() {
           <NavItem href="/settings" icon={<Settings size={20} />} label="Configuración" active={pathname === "/settings"} isCollapsed={isCollapsed} />
         </div>
       </motion.aside>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isMobileOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileOpen(false)}
+              className="lg:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[110]"
+            />
+            <motion.aside
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              className="lg:hidden fixed inset-y-0 left-0 w-[280px] bg-[#0a0a0a] border-r border-white/5 p-6 z-[120] flex flex-col space-y-8 shadow-2xl"
+            >
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <Zap className="text-white w-5 h-5 fill-current" />
+                  </div>
+                  <span className="text-xl font-bold tracking-tight text-white">AI Analyst</span>
+                </div>
+                <button onClick={() => setIsMobileOpen(false)} className="text-zinc-500 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <nav className="flex-1 w-full space-y-2">
+                <NavItem href="/" icon={<LayoutDashboard size={20} />} label="Dashboard" active={pathname === "/"} />
+                <NavItem href="/market" icon={<Globe size={20} />} label="Mercados" active={pathname === "/market"} />
+                <NavItem href="/trading" icon={<LineChart size={20} />} label="Trading" active={pathname === "/trading"} />
+                <NavItem href="/portfolio" icon={<Briefcase size={20} />} label="Portafolio" active={pathname === "/portfolio"} />
+                <NavItem href="/signals" icon={<Zap size={20} />} label="Señales AI" active={pathname === "/signals"} />
+                <NavItem href="/chat" icon={<MessageSquare size={20} />} label="AI Chat" active={pathname === "/chat"} />
+                <NavItem href="/logs" icon={<Terminal size={20} />} label="Logs Brain" active={pathname === "/logs"} />
+                <NavItem href="/learning" icon={<GraduationCap size={20} />} label="Aprendizaje" active={pathname === "/learning"} />
+              </nav>
+
+              <div className="pt-6 border-t border-white/5 space-y-2">
+                <button
+                  onClick={() => { setIsModalOpen(true); setIsMobileOpen(false); }}
+                  className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-500 hover:bg-blue-600/10 hover:text-blue-400 border border-transparent"
+                >
+                  <Network size={20} />
+                  <span className="text-sm font-medium tracking-wide">Arquitectura Neural</span>
+                </button>
+                <NavItem href="/settings" icon={<Settings size={20} />} label="Configuración" active={pathname === "/settings"} />
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       <NeuralArchitectureModal 
         isOpen={isModalOpen} 

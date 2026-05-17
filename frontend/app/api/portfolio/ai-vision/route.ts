@@ -31,25 +31,14 @@ export async function POST(req: Request) {
 
     const existing = positions?.[0];
     
-    // Determinar si es horario de mercado (NY 9:30 AM - 4:00 PM) para acciones comunes
-    const isCrypto = ticker.includes("USD") || ticker.includes("BTC") || ticker.includes("ETH");
-    let marketOpen = true;
-    if (!isCrypto) {
-      const now = new Date();
-      const timeStr = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric", hour12: false, weekday: "long" }).format(now);
-      const [weekday, time] = timeStr.split(" ");
-      const [hour, minute] = time.split(":").map(Number);
-      const totalMinutes = hour * 60 + minute;
-      const isWeekend = weekday === "Saturday" || weekday === "Sunday";
-      if (isWeekend || totalMinutes < 570 || totalMinutes >= 960) {
-        marketOpen = false;
-      }
-    }
+    // Determinar si es horario de mercado
+    const { isMarketOpen } = await import("@/lib/marketHours");
+    const { isOpen: marketOpen, reason: marketReason } = isMarketOpen(ticker);
 
     if (!existing) {
       if (analysis.recomendacion === "BUY" && analysis.confianza >= 70) {
         if (!marketOpen) {
-          actionResult = { status: "MARKET_CLOSED", reason: "Mercado cerrado. Esperando apertura para comprar." };
+          actionResult = { status: "MARKET_CLOSED", reason: marketReason };
         } else {
           actionResult = await executeTrade({
             ticker,
